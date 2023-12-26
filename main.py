@@ -38,17 +38,16 @@ async def best_trophies(interaction: discord.Interaction, account_tag: str ):
     league = League()
     info = player.get_all_player_info()
     
-    townhall_image = discord.File("assets/", filename=f"Town_hall_level_{info["townHallLevel"]}.png")
 
     custom_embed = make_embed(
        title = f'{info["name"]} - {info["tag"]} ',
        description= info["name"],
        thumbnail_url= league.get_specific_league_image(info["league"]["id"]),
-       author_url= f"attachment://Town_hall_level_{info["townHallLevel"]}.png",
+       image_url= f"https://github.com/Rick1505/DiscordApp/blob/master/assets/Town_Hall_level_{info["townHallLevel"]}.png",
        author_text="test"
     )
    
-    await interaction.response.send_message(embed=custom_embed, file=townhall_image)
+    await interaction.response.send_message(embed=custom_embed)
  
  
 #SHOW INFORMATION ABOUT THE CLAN 
