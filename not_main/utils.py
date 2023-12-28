@@ -15,7 +15,7 @@ def make_embed(
         footer_text: str = None,
         footer_icon: str = None,
         timestamp: Union[datetime, bool] = False,
-        fields: Optional[List[Tuple[str, Any, bool]]] 
+        fields: Optional[List[Tuple[str, Any, bool]]]
     ) -> Embed:
         """Creates and returns a Discord embed with the provided parameters.
 
@@ -108,5 +108,6 @@ def make_embed(
                     embed.add_field(name=field[0], value=field[1], inline=False)
                 elif len(field) == 3:
                     embed.add_field(name=field[0], value=field[1], inline=field[2])
+
 
         return embed

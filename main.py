@@ -96,20 +96,56 @@ async def display_textbox(interaction: discord.Interaction, message: str, messag
     )
     await interaction.response.send_message(embed=embed)
     
+
+@tree.command(name="legend_seasons2", description="This will show you all the ranks you have achieved in the different legend seasons", guild=MY_GUILD)
+@app_commands.rename(account_tag = "account")
+@app_commands.describe(account_tag = "The account tag you want to check formatedd in '#ACCOUNT' ")
+async def display_legend_seasons(interaction: discord.Interaction, account_tag: str):
+    
+    player = Player(account_tag=account_tag)
+    league = League()
+    
+    info = player.get_all_player_info()
+    # legend_info = player.get_legend_history()
+    
+    custom_embed = make_embed(
+       title = "Legend seasons",
+       author_icon = info["clan"]["badgeUrls"]["medium"],
+       author_text = info["name"],
+       thumbnail_url = league.get_specific_league_image(info["league"]["id"]),
+       footer_text = info["tag"],
+       fields = [("September", f'{client.get_emoji(emoji.get_emoji("legend_trophy"))} {info["bestTrophies"]}', False)]
+    )
+    
+    await interaction.response.send_message(embed=custom_embed)
+
+    
     
 @tree.command(name="legend_seasons", description="This will show you all the ranks you have achieved in the different legend seasons", guild=MY_GUILD)
 @app_commands.rename(account_tag = "account")
 @app_commands.describe(account_tag = "The account tag you want to check formatedd in '#ACCOUNT' ")
 async def display_legend_seasons(interaction: discord.Interaction, account_tag: str):
     
+    await interaction.response.defer()
+
+    player = Player(account_tag=account_tag)
+    league = League()
     
-    embed = make_embed(
-        
-        description="test"
+    info = player.get_all_player_info()
+    legend_info = player.get_legend_history()
+    
+    list = [f"{record.season} - {record.rank}" for record in legend_info]
+    description = "\n".join(list)
+    
+    custom_embed = make_embed(
+       title = "Legend seasons",
+       author_icon = info["clan"]["badgeUrls"]["medium"],
+       author_text = info["name"],
+       thumbnail_url = league.get_specific_league_image(info["league"]["id"]),
+       description=description,
+       footer_text = info["tag"],
+       fields = [("September", f'{client.get_emoji(emoji.get_emoji("legend_trophy"))} {info["bestTrophies"]}', False)]
     )
-    
-    
-    await interaction.response.send_message(embed=embed)
-    
+    await interaction.followup.send(embed=custom_embed)
             
 client.run(MY_TOKEN)

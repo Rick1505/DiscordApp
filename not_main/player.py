@@ -51,12 +51,13 @@ class Player():
         pass 
         
     def get_legend_history(self):
-        db = database.Database("sqlite", "instances/legend_league.db")
+        db = Database("sqlite", "instances/legend_league.db")
         user_info = db.get_user_information(user_tag=self.account_tag)
 
-        
-        ranks = [user.rank for user in user_info]
-        print(round(average(ranks)))
+        return user_info
+
+        # ranks = [user.rank for user in user_info]
+        # print(round(average(ranks)))
         
     
         
