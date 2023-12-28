@@ -1,6 +1,6 @@
 import os
 import requests
-import urllib
+from urllib import parse
 
 API_TOKEN = os.getenv("API_TOKEN_COC")
 BASE_URL_CLAN = "https://api.clashofclans.com/v1/clans/"
@@ -18,7 +18,7 @@ class Clan():
     
     def get_clan_info(self):
         url = f'{BASE_URL_CLAN}{self.clan_tag}'
-        encoded_url = urllib.parse.quote(url, safe=":/")
+        encoded_url = parse.quote(url, safe=":/")
         try: 
             response = requests.get(url=encoded_url, headers=self.headers)
             response.raise_for_status()
@@ -34,5 +34,22 @@ class Clan():
             clan_info = response.json()
             return clan_info
     
-    def get_all_players():
-        pass
+    def get_all_players(self):
+        url = f"{BASE_URL_CLAN}{self.clan_tag}/members"
+        encoded_url = parse.quote(url, safe=":/")
+        
+        try: 
+            response = requests.get(url=encoded_url, headers=self.headers)
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as errh:
+            return ("Http Error:",errh)
+        except requests.exceptions.ConnectionError as errc:
+            return ("Error Connecting:",errc)
+        except requests.exceptions.Timeout as errt:
+            return ("Timeout Error:",errt)
+        except requests.exceptions.RequestException as err:
+            return ("OOps: Something Else",err)
+        else:
+            all_members = response.json()
+            return all_members
+        
