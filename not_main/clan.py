@@ -52,4 +52,15 @@ class Clan():
         else:
             all_members = response.json()
             return all_members
-        
+    
+    def get_current_war(self):
+        url = f"{BASE_URL_CLAN}{self.clan_tag}/currentwar"
+        encoded_url = parse.quote(url, safe=":/")
+        try:
+            response = requests.get(url=encoded_url, headers=self.headers)
+            response.raise_for_status()
+        except requests.exceptions.RequestException as err:
+            return ("Oops: Something Else", err)
+        else:
+            return response.json()
+    

@@ -2,7 +2,9 @@ import os
 import requests
 import urllib
 from not_main.database import Database
-from numpy import average
+import datetime
+
+from typing import List
 
 API_TOKEN = os.getenv("API_TOKEN_COC")
 BASE_URL_PLAYER = "https://api.clashofclans.com/v1/players/"
@@ -46,19 +48,31 @@ class Player():
             return True
         else:
             return False
-        
-    def get_location(self):
-        pass 
-        
+                
     def get_legend_history(self):
         db = Database("sqlite", "instances/legend_league.db")
-        user_info = db.get_user_information(user_tag=self.account_tag)
+        return db.get_user_information(user_tag=self.account_tag)
+    
+    def change_season_to_dates(self, legend_history: List):
+        seasons_pre = []
+        for record in legend_history:
+            seasons_pre.append(record.season)
 
-        return user_info
-
-        # ranks = [user.rank for user in user_info]
-        # print(round(average(ranks)))
+        seasons_post = []
+        for s in seasons_pre:
+            s = s.split("-")
+            date = datetime.date(year=int(s[0]), month= int(s[1]), day=1)
+            seasons_post.append(date)
+            
+        for i in range(len(legend_history)):
+            legend_history[i].season = seasons_post[i]
+        return legend_history
         
+        # for record in legend_history:
+        #     record.season = seasons_post[]
+            
+        # return [datetime.date(year=int(s.split("-")[0]), month= int(s.split("-")[1]), day=1) for s in legend_history]
+
     
         
         

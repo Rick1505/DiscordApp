@@ -28,13 +28,12 @@ class League():
         response = requests.get(encoded_url, headers=self.headers)
         return response.json()
            
-    
     def get_specific_league_image(self, league_id):
         data = self.get_specific_league(league_id)
         return data["iconUrls"]["tiny"]
     
     def add_players_to_legend_db(self):
-        db = Database(database_type="sqlite", url_database="legend_league.db")
+        db = Database(database_type="sqlite", url_database="instances/legend_league.db")
         seasons= ["2021-01"]        
                 
         for s in seasons:           
@@ -50,6 +49,8 @@ class League():
             data_items = data["items"]
             for s in seasons:
                 db.add_season_to_legend_db(data_items, season=s)
+
+
             
 
     
