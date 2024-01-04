@@ -1,5 +1,6 @@
 discord.log
 token.txt
+legend_league.db
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

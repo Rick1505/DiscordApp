@@ -80,7 +80,7 @@ class Database():
         return self.session.query(TrackedUser.id).filter_by(tag=account_tag).first() is not None
         
         
-    #GROUPS TABLE    
+    #GROUPS TABLE    TODO ADD GUILD_ID
     def get_all_from_group(self, group_id: int):
         #Gets all the objects from a specific group
         self.create_specific_table(GroupUser)

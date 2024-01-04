@@ -31,6 +31,7 @@ class TrackedUser(Base):
     delta_trophies = Column(Integer)
     date = Column(DateTime)
     
+#TODO ADD GUILD_ID
 class GroupUser(Base):
     __tablename__ = "user_groups"
     
