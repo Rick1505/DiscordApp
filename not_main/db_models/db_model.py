@@ -30,3 +30,10 @@ class TrackedUser(Base):
     current_trophies = Column(Integer)
     delta_trophies = Column(Integer)
     date = Column(DateTime)
+    
+class GroupUser(Base):
+    __tablename__ = "user_groups"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    group = Column(Integer)
+    tag = Column(String)

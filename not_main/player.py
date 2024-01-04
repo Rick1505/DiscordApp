@@ -67,13 +67,15 @@ class Player():
         for i in range(len(legend_history)):
             legend_history[i].season = seasons_post[i]
         return legend_history
-        
-        # for record in legend_history:
-        #     record.season = seasons_post[]
-            
-        # return [datetime.date(year=int(s.split("-")[0]), month= int(s.split("-")[1]), day=1) for s in legend_history]
 
+    def get_trophies(self):
+        player_info = self.get_all_player_info()
+        return player_info["trophies"]
     
+    def get_db_trophies(self):
+        db = Database("sqlite", "instances/legend_league.db")
+        db.get_player_trophies(account_tag= self.account_tag)   
+        return db.get_player_trophies(account_tag= self.account_tag)        
         
         
         

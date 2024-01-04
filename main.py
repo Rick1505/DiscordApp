@@ -1,11 +1,13 @@
 import  discord
 import  os
 from    discord             import app_commands
+from    discord.ext         import tasks 
 from    not_main.player     import Player
 from    not_main.league     import League
 from    not_main.emojis     import Emoji
 from    not_main.clan       import Clan
 from    not_main.utils      import make_embed
+from    not_main.database   import Database
 from    typing              import Any, Optional
 import  asyncio
 
@@ -27,6 +29,12 @@ client = MyClient()
 
 @client.event
 async def on_ready():
+    
+    channel_id = discord.utils.get(client.get_all_channels(), name="testbot")
+    
+    # if not auto_send.is_running():
+    #     channel = await client.fetch_channel(channel_id.id)
+    #     auto_send.start(channel)
     print(f'Logged in as {client.user} (ID: {client.user.id})')
 
 #Add the guild ids in which the slash command will appear. If it should be in all, remove the argument, but note that it will take some time (up to an hour) to register the command if it's for all guilds.
@@ -82,7 +90,6 @@ async def best_trophies(interaction: discord.Interaction, clan_tag: str ):
     print(info)
     await interaction.response.send_message("test")
     
-@app_commands.guild_only      
 @client.tree.command(name="legend_seasons", description="This will show you all the ranks you have achieved in the different legend seasons", guild=MY_GUILD)
 @app_commands.rename(account_tag = "account")
 @app_commands.describe(account_tag = "The account tag you want to check formatedd in '#ACCOUNT' ")
@@ -120,5 +127,46 @@ async def display_legend_seasons(interaction: discord.Interaction, account_tag: 
        footer_text = info["tag"],
     )
     await interaction.followup.send(embed=embed_legend_seasons)
+    
+
+@tasks.loop(secons=30) 
+async def legend_feed(channel: discord.TextChannel):
+    db = Database(database_type="sqlite", url_database="instances/legend_league.db")
+ 
+    # Get every tag you want to check
+    player_group = db.get_all_from_group(1)
+    #store every tag in a list
+    tags_to_check = [record.tag for record in player_group]
+
+    #Check every individual tag for changes
+    for tag in tags_to_check:
+        player = Player(tag)
+        player_info = player.get_all_player_info()
+        new_trophies = player_info["trophies"]
+        current_trophies = player.get_db_trophies()
+        delta_trophies = new_trophies - current_trophies
+        
+        if new_trophies != current_trophies:
+            db.add_mutation(account_tag=tag, current_trophies=current_trophies, new_trophies=new_trophies)
+            embed = discord.Embed(
+                title=player_info["name"],
+                author = tag,
+                description= f"{delta_trophies}"
+            ) 
+            await channel.send(embed=embed)
+        else:
+            print("Current is the same as new")    
+
+
+channels = client.get_all_channels()
+    
+@client.tree.command(name = "set_legend_feed", description = "This will set the correct channel for the legend feed.", guild=MY_GUILD)
+@app_commands.rename(channel = "channel")
+@app_commands.describe(channel = "The channel you want the bot to post all hits in")
+async def set_channel(interaction: discord.Interaction, channel: discord.TextChannel):
+    legend_feed.start(channel)
+       
+    await interaction.response.send_message(f"The channel has successfully been set {channel}")
+       
       
 client.run(MY_TOKEN)
