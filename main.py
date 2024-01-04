@@ -146,6 +146,9 @@ async def legend_feed(channel: discord.TextChannel):
         current_trophies = player.get_db_trophies()
         delta_trophies = new_trophies - current_trophies
         
+        
+        #TODO add all changes to a list in a list as a string with: emoji, cups, name
+        #TODO make an embed with multiple pages, every page shows Title: name; Description: overview, total begin total now +/- and details with every attack. footer is group_name
         if new_trophies != current_trophies:
             db.add_mutation(account_tag=tag, current_trophies=current_trophies, new_trophies=new_trophies)
             embed = discord.Embed(
