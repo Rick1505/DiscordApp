@@ -10,15 +10,19 @@ dutchies = loc.get_belgian_players()
 # print(dutchies)
 
 db = Database(database_type="sqlite", url_database="instances/legend_league.db")
-player = Player("#LJCLPU0PC")
-trophies = player.get_trophies()
-db.add_player_to_group(group=1, player= player, trophies=trophies)
+# player = Player("#LJCLPU0PC")
+# trophies = player.get_trophies()
+# db.add_player_to_group(group=1, player= player, trophies=trophies)
 
 # Get every tag you want to check
-# player_group = db.get_all_from_group(1)
-# #store every tag in a list
-# tags_to_check = [record.tag for record in player_group]
+player_group = db.get_all_groups(768847345889575020)
+print(player_group)
 
+# #store every tag in a list
+# all_groups = db.get_all_groups(interaction.guild.id)
+group_names = [record.group for record in player_group]
+group_names_unique = list(set(group_names))
+print(group_names_unique)
 #Check every individual tag for changes
 # while True:
 

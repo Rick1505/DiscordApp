@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, text
+from sqlalchemy import create_engine, Column, Integer, String, text, delete, and_
 from sqlalchemy.orm import sessionmaker
 from not_main.db_models.db_model import User, NationalityUser, GroupUser, TrackedUser, Base
 from datetime import datetime as dt
@@ -81,42 +81,54 @@ class Database():
         
         
     #GROUPS TABLE    TODO ADD GUILD_ID
-    def get_all_from_group(self, group_id: int):
+    def get_all_from_group(self, group_id: int, guild_id: int):
         #Gets all the objects from a specific group
         self.create_specific_table(GroupUser)
         
-        return self.session.query(GroupUser).filter_by(group=group_id).all()
+        return self.session.query(GroupUser).filter_by(group=group_id, guild=guild_id).all()
     
-    def get_all_groups(self):
+    def get_all_groups(self, guild_id: int):
         #Gets all the objects in all groups
-        return self.session.query(GroupUser).all()
+        return self.session.query(GroupUser).filter_by(guild = guild_id).all()
     
-    def add_player_to_group(self, group: int, player, trophies:int):
+    def add_player_to_group(self, group: str, player, guild_id: int):
         self.create_specific_table(GroupUser)
         
-        #Check if player is already added to the group
-        exists = self.session.query(GroupUser.id).filter_by(tag=player.account_tag, group=group).first() is not None
+        #Check if player is already added to the group in the current guild
+        exists = self.session.query(GroupUser.id).filter_by(tag=player.account_tag, group=group, guild = guild_id).first() is not None
                 
         if not exists:
             #If player isn't in the group add it to group
-            self.session.add(GroupUser(group=group, tag=player.account_tag))
+            self.session.add(GroupUser(group=group, tag=player.account_tag, guild = guild_id))
             
             #Also check if player is tracked already
             is_tracked = self.check_if_player_is_tracked(player.account_tag)
+            self.session.commit()
             
             if not is_tracked:
                 #If not tracked get player trophies
                 current_trophies = player.get_trophies()
                 #Add player to TRACKED_USERS Table
                 self.add_mutation(account_tag=player.account_tag, current_trophies=0, new_trophies=current_trophies)
+                self.session.commit()
+                self.session.close()
+                return "User is starting to get tracked and has been added to the group"
             else:
-                print("Users is already being tracked")
-                
-            self.session.commit()
+                #TODO return an a string with this answer so discord can send a message user is already being tracked
+                return "User is added to the group"                
         else:
+            #TODO return an a string with this answer so discord can send a message
             #Return error player is in the group
-            return print("User is already in the group")
+            return "User is already in the group"
+    
+    def rm_player_from_group(self, group: str, player: str, guild_id:int):
         
+        delete_statement = delete(GroupUser).where(and_(GroupUser.guild==guild_id, GroupUser.tag==player, GroupUser.group==group))
+        
+        self.session.execute(delete_statement)
+        self.session.commit()
+        self.session.close()
+        return "User has been deleted"
 
     
         

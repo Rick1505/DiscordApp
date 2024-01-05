@@ -8,7 +8,8 @@ from    not_main.emojis     import Emoji
 from    not_main.clan       import Clan
 from    not_main.utils      import make_embed
 from    not_main.database   import Database
-from    typing              import Any, Optional
+from    typing              import Any, Optional, List
+from    enum                import Enum
 import  asyncio
 
 MY_GUILD = discord.Object(int(os.getenv("GUILD_ID")))  # replace with your guild id
@@ -31,12 +32,9 @@ client = MyClient()
 async def on_ready():
     
     channel_id = discord.utils.get(client.get_all_channels(), name="testbot")
-    
-    # if not auto_send.is_running():
-    #     channel = await client.fetch_channel(channel_id.id)
-    #     auto_send.start(channel)
     print(f'Logged in as {client.user} (ID: {client.user.id})')
 
+#TODO BEFORE LIVE REMOVE GUILD COMMAND
 #Add the guild ids in which the slash command will appear. If it should be in all, remove the argument, but note that it will take some time (up to an hour) to register the command if it's for all guilds.
 
 
@@ -129,12 +127,13 @@ async def display_legend_seasons(interaction: discord.Interaction, account_tag: 
     await interaction.followup.send(embed=embed_legend_seasons)
     
 
-@tasks.loop(secons=30) 
-async def legend_feed(channel: discord.TextChannel):
+@tasks.loop(seconds=30) 
+async def legend_feed(channel: discord.TextChannel, guild_id: int):
     db = Database(database_type="sqlite", url_database="instances/legend_league.db")
- 
-    # Get every tag you want to check
-    player_group = db.get_all_from_group(1)
+    
+    # Get tags from all groups
+    player_group = db.get_all_groups(guild_id=guild_id)
+    
     #store every tag in a list
     tags_to_check = [record.tag for record in player_group]
 
@@ -142,10 +141,10 @@ async def legend_feed(channel: discord.TextChannel):
     for tag in tags_to_check:
         player = Player(tag)
         player_info = player.get_all_player_info()
+        
         new_trophies = player_info["trophies"]
         current_trophies = player.get_db_trophies()
         delta_trophies = new_trophies - current_trophies
-        
         
         #TODO add all changes to a list in a list as a string with: emoji, cups, name
         #TODO make an embed with multiple pages, every page shows Title: name; Description: overview, total begin total now +/- and details with every attack. footer is group_name
@@ -153,23 +152,68 @@ async def legend_feed(channel: discord.TextChannel):
             db.add_mutation(account_tag=tag, current_trophies=current_trophies, new_trophies=new_trophies)
             embed = discord.Embed(
                 title=player_info["name"],
-                author = tag,
+                author_name = tag,
                 description= f"{delta_trophies}"
             ) 
             await channel.send(embed=embed)
         else:
             print("Current is the same as new")    
-
-
-channels = client.get_all_channels()
-    
+   
 @client.tree.command(name = "set_legend_feed", description = "This will set the correct channel for the legend feed.", guild=MY_GUILD)
 @app_commands.rename(channel = "channel")
 @app_commands.describe(channel = "The channel you want the bot to post all hits in")
 async def set_channel(interaction: discord.Interaction, channel: discord.TextChannel):
-    legend_feed.start(channel)
+    legend_feed.start(channel, interaction.guild.id)
        
     await interaction.response.send_message(f"The channel has successfully been set {channel}")
        
-      
+       
+       
+async def group_autocomplete(
+    interaction: discord.Interaction,
+    current: str,
+)   -> List[app_commands.Choice[str]]:
+    db = Database(database_type="sqlite", url_database="instances/legend_league.db")
+    
+    all_groups = db.get_all_groups(interaction.guild.id)
+    group_names = [record.group for record in all_groups]
+    group_names_unique = list(set(group_names))
+    
+    return [
+        app_commands.Choice(name=group, value=group)
+        for group in group_names_unique if current.lower() in group.lower()
+    ]   
+       
+@client.tree.command(name="add_player_to_group", description="This will add a player to a specific group", guild=MY_GUILD)
+@app_commands.autocomplete(group_tag = group_autocomplete)
+@app_commands.rename(account_tag="account", group_tag="group")
+@app_commands.describe(account_tag="The account you want to add to a group", group_tag= "The group you want to add the account to")
+async def add_player_to_group(interaction: discord.Interaction, account_tag: str, group_tag: str):
+    await interaction.response.defer()
+
+    db = Database(database_type="sqlite", url_database="instances/legend_league.db")   
+    player = Player(account_tag=account_tag)
+    group_to_add = group_tag.lower()
+    print(interaction.guild.id)
+    answer = db.add_player_to_group(group=group_to_add, player=player,guild_id=interaction.guild.id )
+    
+    await interaction.followup.send(answer)    
+       
+
+@client.tree.command(name="remove_player_from_group", description="This will remove a player from a specific group", guild=MY_GUILD)
+@app_commands.autocomplete(group_tag = group_autocomplete)
+@app_commands.rename(account_tag="account", group_tag="group")
+@app_commands.describe(account_tag="The account you want to remove from the group", group_tag= "The group you want to account to be removed from")
+async def remove_player_from_group(interaction: discord.Interaction, account_tag: str, group_tag: str):
+    await interaction.response.defer()
+
+    db = Database(database_type="sqlite", url_database="instances/legend_league.db")   
+    group = group_tag.lower()
+    print(interaction.guild.id)
+    print(group)
+    print(account_tag)
+    response = db.rm_player_from_group(group=group, player=account_tag, guild_id=interaction.guild.id)
+    
+    await interaction.followup.send(response)    
+                 
 client.run(MY_TOKEN)
