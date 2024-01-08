@@ -68,15 +68,20 @@ class Player():
             legend_history[i].season = seasons_post[i]
         return legend_history
 
+    #Get the current trophies of a player
     def get_trophies(self):
         player_info = self.get_all_player_info()
         return player_info["trophies"]
     
+    #Get the latest recorded trophies in the database of a player
     def get_db_trophies(self):
         db = Database("sqlite", "instances/legend_league.db")
         db.get_player_trophies(account_tag= self.account_tag)   
         return db.get_player_trophies(account_tag= self.account_tag)        
         
+    def get_name(self):
+        data = self.get_all_player_info()
+        return data["name"]
         
         
         

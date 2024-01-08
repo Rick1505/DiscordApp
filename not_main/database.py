@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, text, delete, and_
+from sqlalchemy import create_engine, Column, Integer, String, text, delete, and_, update
 from sqlalchemy.orm import sessionmaker
 from not_main.db_models.db_model import User, NationalityUser, GroupUser, TrackedUser, Base
 from datetime import datetime as dt
@@ -66,6 +66,7 @@ class Database():
         self.session.add(new_mutation)
         self.session.commit()
         
+        
     def get_player_trophies(self, account_tag: str):
         self.create_specific_table(TrackedUser)
 
@@ -73,7 +74,7 @@ class Database():
         data = self.session.query(TrackedUser.current_trophies).filter_by(tag=account_tag).order_by(TrackedUser.id.desc()).first()
         return data.current_trophies
     
-    def check_if_player_is_tracked(self, account_tag: str):
+    def check_if_player_is_tracked(self, account_tag: str) -> bool:
         self.create_specific_table(TrackedUser)
 
         #Returns False if not tracked, returns True if tracked
@@ -98,8 +99,9 @@ class Database():
         exists = self.session.query(GroupUser.id).filter_by(tag=player.account_tag, group=group, guild = guild_id).first() is not None
                 
         if not exists:
+            name = player.get_name()
             #If player isn't in the group add it to group
-            self.session.add(GroupUser(group=group, tag=player.account_tag, guild = guild_id))
+            self.session.add(GroupUser(group=group, tag=player.account_tag, guild = guild_id, name=name))
             
             #Also check if player is tracked already
             is_tracked = self.check_if_player_is_tracked(player.account_tag)
@@ -114,6 +116,7 @@ class Database():
                 self.session.close()
                 return "User is starting to get tracked and has been added to the group"
             else:
+                self.session.close()
                 #TODO return an a string with this answer so discord can send a message user is already being tracked
                 return "User is added to the group"                
         else:
@@ -121,15 +124,31 @@ class Database():
             #Return error player is in the group
             return "User is already in the group"
     
-    def rm_player_from_group(self, group: str, player: str, guild_id:int):
-        
-        delete_statement = delete(GroupUser).where(and_(GroupUser.guild==guild_id, GroupUser.tag==player, GroupUser.group==group))
+    def rm_player(self,player: str, guild_id:int):
+        #delete the user from a specific group
+        delete_statement = delete(GroupUser).where(and_(GroupUser.guild==guild_id, GroupUser.tag==player))
         
         self.session.execute(delete_statement)
         self.session.commit()
         self.session.close()
         return "User has been deleted"
 
+    def get_current_group(self, account: str, guild_id: int):
+        response = self.session.query(GroupUser).filter_by(guild=guild_id, tag=account).scalar()
+        return response.group
+    
+    def change_player_group(self, account: str, new_group: str, guild_id: int):
+        
+        update_statement = update(GroupUser).where(and_(GroupUser.guild == guild_id, GroupUser.tag==account)).values(group=new_group)
+        
+        self.session.execute(update_statement)
+        self.session.commit()
+        self.session.close()
+        
+        if self.get_current_group(account=account, guild_id=guild_id) == new_group:
+            return "User has been updated"
+        else:
+            return "There has ben an error"
     
         
         

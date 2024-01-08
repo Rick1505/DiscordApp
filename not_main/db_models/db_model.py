@@ -37,5 +37,6 @@ class GroupUser(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     guild = Column(Integer)
     tag = Column(String)
+    name = Column(String)
     group = Column(String)
 
