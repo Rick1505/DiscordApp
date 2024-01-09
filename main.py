@@ -75,7 +75,8 @@ async def best_trophies(interaction: discord.Interaction, account_tag: str ):
 #     info = clan.get_clan_info()
 #     print(info)
 #     await interaction.response.send_message("test")
-    
+
+#DISPLAYS ALL LEGEND SEASONS FROM 2021 TO 2023     
 @client.tree.command(name="legend_seasons", description="This will show you all the ranks you have achieved in the different legend seasons", guild=MY_GUILD)
 @app_commands.rename(account_tag = "account")
 @app_commands.describe(account_tag = "The account tag you want to check formatedd in '#ACCOUNT' ")
@@ -113,9 +114,64 @@ async def display_legend_seasons(interaction: discord.Interaction, account_tag: 
        footer_text = info["tag"],
     )
     await interaction.followup.send(embed=embed_legend_seasons)
-    
 
-@tasks.loop(seconds=30) 
+
+def create_standard_embed(player_name:str, player_tag: str, group_name: str, database: Database) -> discord.Embed:
+    db = database
+    
+    data = db.get_all_mutations_per_day(account_tag=player_tag)
+    
+    offense = data["offense"]
+    defense = data["defense"]
+    
+    field1 = "\n".join(str(attack) for attack in offense)
+    field2 = "\n".join(str(defend) for defend in defense)
+    
+    description = f"""
+    __*Overview*__ \n
+    
+    Total Offense: {sum(offense)}\n
+    Total Defense: {sum(defense)}
+    """
+    custom_embed = discord.Embed(
+        title=player_name,
+        description= description,
+        colour=discord.Colour.from_rgb(0, 150, 255)
+    )
+    custom_embed.add_field(name="**Offense**", value=field1, inline=True)
+    custom_embed.add_field(name="**Defense**", value=field2, inline=True)
+    
+    custom_embed.set_footer(text=group_name)
+    return custom_embed
+
+
+# async def create_standard_paging(embeds: List, channel:discord.TextChannel):
+#     current_page = 0
+            
+#     message = await channel.send(embed=embeds[current_page])
+    
+#     await message.add_reaction("◀️")  # Left arrow reaction
+#     await message.add_reaction("▶️")  # Right arrow reaction
+
+#     while True:
+#         try:
+#             reaction, user = await client.wait_for('reaction_add', timeout=60.0)
+
+#             if str(reaction.emoji) == "▶️":
+#                 current_page = (current_page + 1) % len(embeds)
+#             elif str(reaction.emoji) == "◀️":
+#                 current_page = (current_page - 1) % len(embeds)
+
+#             await message.edit(embed=embeds[current_page])
+#             await message.remove_reaction(reaction, user)
+
+#         except TimeoutError:
+#             break   
+
+
+    
+#THIS WILL POST LEGEND HITS EVERY 60 SECONDS
+@tasks.loop(seconds=60) 
 async def legend_feed(channel: discord.TextChannel, guild_id: int):
     db = Database(database_type="sqlite", url_database="instances/legend_league.db")
     
@@ -124,79 +180,150 @@ async def legend_feed(channel: discord.TextChannel, guild_id: int):
     
     #store every tag in a list
     tags_to_check = [record.tag for record in player_group]
+    
+    #Create list of mutations
     mutations = []
+    
+    standard_embeds = []
+    
     #Check every individual tag for changes
     for tag in tags_to_check:
+        info = {}
         player = Player(tag)
         player_info = player.get_all_player_info()
         
+        #Calculating trophies
         new_trophies = player_info["trophies"]
         current_trophies = player.get_db_trophies()
+        #CHANGE TO DELTA
         delta_trophies = new_trophies - current_trophies
-               
+                        
         #TODO add all changes to a list in a list as a string with: emoji, cups, name
         #TODO make an embed with multiple pages, every page shows Title: name; Description: overview, total begin total now +/- and details with every attack. footer is group_name
-        if new_trophies > current_trophies:
+        if delta_trophies != 0:
+            #adds mutation to database
             db.add_mutation(account_tag=tag, current_trophies=current_trophies, new_trophies=new_trophies)
-            custom_embed = discord.Embed(
-                title=player_info["name"],
-                color= discord.Color.from_rgb(0, 200, 0),
-                description= f"{client.get_emoji(emoji.get_emoji("plus_trophy"))} {delta_trophies}"
-            ) 
-            custom_embed.set_footer(text=tag)
-            mutations.append(custom_embed)
 
-            # await channel.send(embed=custom_embed)  
-
-        elif new_trophies < current_trophies:
-            db.add_mutation(account_tag=tag, current_trophies=current_trophies, new_trophies=new_trophies)
-            custom_embed = discord.Embed(
-                title=player_info["name"],
-                colour= discord.Colour.from_rgb(254, 0,0),
-                description= f"{client.get_emoji(emoji.get_emoji("min_trophy"))} {delta_trophies}"
-            ) 
-            custom_embed.set_footer(text=tag)
-            mutations.append(custom_embed)
+            #adds information to info
+            info["name"] = player_info["name"]
+            info["group_name"] = db.get_player_from_group(768847345889575020, account_tag=tag).group
+            info["delta_trophies"] = delta_trophies
             
-            # await channel.send(embed=custom_embed)  
+            standard_embeds.append(create_standard_embed(info["name"], tag, info["group_name"], db))
+            
+            #add information of mutation to list mutations
+            mutations.append(info)
+            
+    #Check amount of mutations
+    if len(mutations) > 1:    
         
-               
-    if len(mutations) != 0:            
-        
-        
-    #add all players to list    
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        current_page = 0
-        
-        message = await channel.send(embed=mutations[current_page])
-        await message.add_reaction("◀️")  # Left arrow reaction
-        await message.add_reaction("▶️")  # Right arrow reaction
+        #create list of embeds
+        embeds = []
+        counter = 1
+          
+        description = ""    
+        for mutation in mutations:
 
-        while True:
-            try:
-                reaction, user = await client.wait_for('reaction_add', timeout=60.0)
+            if mutation["delta_trophies"] > 0:
+                #Add positive mutation to description
+                description =  description + (f"{counter} {client.get_emoji(emoji.get_emoji("plus_trophy"))} {mutation["delta_trophies"]} {mutation["name"]}\n")
+                counter += 1
+                
+            else:
+                #Add negative mutation to description
+                description = description +  (f"{counter} {client.get_emoji(emoji.get_emoji("min_trophy"))} {mutation["delta_trophies"]} {mutation["name"]} \n")
+                counter += 1
+                
+        #Create embed with lists of mutations
+        custom_embed = discord.Embed(
+                description = description,
+                colour=discord.Colour.from_rgb(0, 150, 255)
+        )
+        
+        #add custom_embed to list of embeds
+        embeds.append(custom_embed)
+        embeds = embeds + standard_embeds
+        
+        
+        #check if there are any embeds
+        if len(embeds) > 0:
+            
+            current_page = 0
+            
+            message = await channel.send(embed=embeds[current_page])
+            
+            await message.add_reaction("◀️")  # Left arrow reaction
+            await message.add_reaction("▶️")  # Right arrow reaction
 
-                if str(reaction.emoji) == "▶️":
-                    current_page = (current_page + 1) % len(mutations)
-                elif str(reaction.emoji) == "◀️":
-                    current_page = (current_page - 1) % len(mutations)
+            while True:
+                try:
+                    reaction, user = await client.wait_for('reaction_add', timeout=60.0)
 
-                await message.edit(embed=mutations[current_page])
-                await message.remove_reaction(reaction, user)
+                    if str(reaction.emoji) == "▶️":
+                        current_page = (current_page + 1) % len(embeds)
+                    elif str(reaction.emoji) == "◀️":
+                        current_page = (current_page - 1) % len(embeds)
 
-            except TimeoutError:
-                break
-   
+                    await message.edit(embed=embeds[current_page])
+                    await message.remove_reaction(reaction, user)
+
+                except TimeoutError:
+                    break   
+            
+        
+    elif len(mutations) == 1:
+        embeds = []       
+        mutation = mutations[0]
+          
+        if mutation["delta_trophies"] > 0:
+            
+            custom_embed = discord.Embed(
+                title=mutation["name"],
+                color= discord.Color.from_rgb(0, 200, 0),
+                description= f"{client.get_emoji(emoji.get_emoji("plus_trophy"))} {mutation["delta_trophies"]}"
+            ) 
+            custom_embed.set_footer(text=tag)
+            embeds.append(custom_embed)
+            
+        else:
+            custom_embed = discord.Embed(
+                title=mutation["name"],
+                colour= discord.Colour.from_rgb(254, 0,0),
+                description= f"{client.get_emoji(emoji.get_emoji("min_trophy"))} {mutation["delta_trophies"]}"
+            ) 
+            custom_embed.set_footer(text=tag)
+            embeds.append(custom_embed)
+        
+        embeds = embeds + standard_embeds
+
+                    
+        if len(embeds) > 0:
+            current_page = 0
+            
+            message = await channel.send(embed=embeds[current_page])
+            
+            await message.add_reaction("◀️")  # Left arrow reaction
+            await message.add_reaction("▶️")  # Right arrow reaction
+
+            while True:
+                try:
+                    reaction, user = await client.wait_for('reaction_add', timeout=180.0)
+
+                    if str(reaction.emoji) == "▶️":
+                        current_page = (current_page + 1) % len(embeds)
+                    elif str(reaction.emoji) == "◀️":
+                        current_page = (current_page - 1) % len(embeds)
+
+                    await message.edit(embed=embeds[current_page])
+                    await message.remove_reaction(reaction, user)
+
+                except TimeoutError:
+                    
+                    break   
+    else:
+        pass
+
+#ACTIVATES THE LEGEND_FEED   
 @client.tree.command(name = "set_legend_feed", description = "This will set the correct channel for the legend feed.", guild=MY_GUILD)
 @app_commands.rename(channel = "channel")
 @app_commands.describe(channel = "The channel you want the bot to post all hits in")
@@ -205,7 +332,7 @@ async def set_channel(interaction: discord.Interaction, channel: discord.TextCha
        
     await interaction.response.send_message(f"The channel has successfully been set {channel}")
               
-       
+#AUTO POPULATE FOR A GROUP       
 async def group_autocomplete(
     interaction: discord.Interaction,
     current: str,
@@ -219,8 +346,9 @@ async def group_autocomplete(
     return [
         app_commands.Choice(name=group, value=group)
         for group in group_names_unique if current.lower() in group.lower()
-    ]   
-       
+    ] 
+      
+#THIS ADDS A PLAYER TO A GROUP       
 @client.tree.command(name="add_player_to_group", description="This will add a player to a specific group", guild=MY_GUILD)
 @app_commands.autocomplete(group_tag = group_autocomplete)
 @app_commands.rename(account_tag="account", group_tag="group")
@@ -231,41 +359,41 @@ async def add_player_to_group(interaction: discord.Interaction, account_tag: str
     db = Database(database_type="sqlite", url_database="instances/legend_league.db")   
     player = Player(account_tag=account_tag)
     group_to_add = group_tag.lower()
-    print(interaction.guild.id)
-    answer = db.add_player_to_group(group=group_to_add, player=player,guild_id=interaction.guild.id )
+    response = db.add_player_to_group(group=group_to_add, player=player,guild_id=interaction.guild.id )
     
-    await interaction.followup.send(answer)    
+    await interaction.followup.send(response)    
 
-
+#AUTO POPULATE FOR A PLAYER
 async def player_autocomplete(
     interaction: discord.Interaction,
     current: str,
 )   -> List[app_commands.Choice[str]]:
     db = Database(database_type="sqlite", url_database="instances/legend_league.db")
     
-    all_players = db.get_all_from_group(interaction.guild.id)
-    player_accounts = [record.tag for record in all_players]
-    player_accounts_unique = list(set(player_accounts))
-    
+    all_players = db.get_all_groups(interaction.guild.id)
+    player_accounts = [[record.name, record.tag] for record in all_players]
+    player_accounts_unique = [list(player) for player in set(tuple(player) for player in player_accounts)]
+           
     return [
-        app_commands.Choice(name=player, value=player)
-        for player in player_accounts_unique if current.lower() in player.lower()
-    ]          
-
+        app_commands.Choice(name=f"{player[0]} - {player[1]}", value=player[1])
+        for player in player_accounts_unique
+    ]
+           
+#THIS REMOVES A PLAYER
 @client.tree.command(name="remove_player", description="This will remove the player from the feed", guild=MY_GUILD)
 @app_commands.autocomplete(account_tag = player_autocomplete)
 @app_commands.rename(account_tag="account")
 @app_commands.describe(account_tag="The account you want to remove from the group")
 async def remove_player(interaction: discord.Interaction, account_tag: str):
     await interaction.response.defer()
-
     db = Database(database_type="sqlite", url_database="instances/legend_league.db")
     response = db.rm_player(player=account_tag, guild_id=interaction.guild.id)
     
     await interaction.followup.send(response)    
-
+    
+#CHANGES THE PLAYER TO ANOTHER GROUP
 @client.tree.command(name="change_group", description="Change the player from one group to another", guild=MY_GUILD)
-@app_commands.autocomplete(new_group = group_autocomplete)
+@app_commands.autocomplete(account_tag= player_autocomplete, new_group = group_autocomplete)
 @app_commands.rename(account_tag="account")
 @app_commands.describe(account_tag="The account you want to change groups", new_group = "The group you want the account to change to")
 async def change_player_group(interaction: discord.Interaction, account_tag: str, new_group:str):

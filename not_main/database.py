@@ -1,8 +1,7 @@
 from sqlalchemy import create_engine, Column, Integer, String, text, delete, and_, update
 from sqlalchemy.orm import sessionmaker
 from not_main.db_models.db_model import User, NationalityUser, GroupUser, TrackedUser, Base
-from datetime import datetime as dt
-
+import datetime 
 
 class Database():
     def __init__(self, database_type: str, url_database: str) -> None:
@@ -16,6 +15,7 @@ class Database():
         
     def create_all_tables(self):
         self.Base.metadata.create_all(self.engine)
+    
     
     #LEGEND_TROPHIES TABLE       
     def add_season_to_legend_db(self, data: list, season: str):
@@ -52,7 +52,6 @@ class Database():
         
         self.session.commit()
     
-    
     #TRACKED_USERS TABLE          
     def add_mutation(self, account_tag, current_trophies, new_trophies):
         #Create the table
@@ -62,10 +61,9 @@ class Database():
         delta_trophies = new_trophies - current_trophies
         
         #Add a new mutation to the database
-        new_mutation = TrackedUser(tag=account_tag, current_trophies= new_trophies, delta_trophies = delta_trophies, date=dt.now())
+        new_mutation = TrackedUser(tag=account_tag, current_trophies= new_trophies, delta_trophies = delta_trophies, date=datetime.datetime.now(datetime.UTC))
         self.session.add(new_mutation)
-        self.session.commit()
-        
+        self.session.commit()  
         
     def get_player_trophies(self, account_tag: str):
         self.create_specific_table(TrackedUser)
@@ -79,7 +77,45 @@ class Database():
 
         #Returns False if not tracked, returns True if tracked
         return self.session.query(TrackedUser.id).filter_by(tag=account_tag).first() is not None
+
+    def get_all_mutations_per_day(self, account_tag: str) -> dict:
+        #Get current time in UTC
+        now = datetime.datetime.now(datetime.UTC)
+        tomorrow = now + datetime.timedelta(days=1)  
+        yesterday = now + datetime.timedelta(days=1)  
+              
         
+        #Check if current time is before or after legend reset of today
+        if now.hour >= 6:
+            
+            #If it is after set begin_time as today, end_time as tomorrow
+            begin_time = datetime.datetime(now.year,now.month, now.day,6,0,0,0, datetime.UTC)
+            end_time = datetime.datetime(tomorrow.year, tomorrow.month, tomorrow.day,6,0,0,0,datetime.UTC)   
+        else:
+
+            #If it is before set begin_time as yesterday, end_time as today
+            begin_time = datetime.datetime(yesterday.year,yesterday.month, yesterday.day,6,0,0,0, datetime.UTC) 
+            end_time = datetime.datetime(now.year,now.month, now.day,6,0,0,0, datetime.UTC)
+            
+        data = self.session.query(TrackedUser.delta_trophies).filter(TrackedUser.date > begin_time, TrackedUser.date < end_time, TrackedUser.tag == account_tag).all()
+        data = [record.delta_trophies for record in data]        
+        
+        mutations = {
+            "offense": [],
+            "defense": [],
+            "error": []
+        }
+        
+        for mutation in data:
+            if mutation > 0:
+                mutations["offense"].append(mutation)
+            elif mutation < 0:
+                mutations["defense"].append(mutation)
+            else:
+                mutations["error"].append(mutation)
+       
+        return mutations       
+                
         
     #GROUPS TABLE    TODO ADD GUILD_ID
     def get_all_from_group(self, group_id: int, guild_id: int):
@@ -150,6 +186,8 @@ class Database():
         else:
             return "There has ben an error"
     
+    def get_player_from_group(self, guild_id, account_tag):
+        return self.session.query(GroupUser).filter_by(guild=guild_id, tag=account_tag).scalar()
         
         
         

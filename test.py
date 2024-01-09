@@ -2,30 +2,34 @@ from not_main.location import Location
 from not_main.database import Database
 from not_main.player   import Player
 from not_main.clan     import Clan
+import datetime
 import time
 
-loc = Location()
-
-dutchies = loc.get_belgian_players()
-
-# print(dutchies)
-
-# db = Database(database_type="sqlite", url_database="instances/legend_league.db")
-
-# response = db.change_player_group(guild_id = 768847345889575020, account= "#PVV20RG28", new_group = "rhc 5v5")
-# print(response)
-
-clan = Clan("#RQGGLV20")
-members = clan.get_all_players()
-# print(members["items"])
-
-all_tags = [member["tag"] for member in members["items"]]
-
-for tag in all_tags:
-    player = Player(tag)
+db = Database(database_type="sqlite", url_database="instances/legend_league.db")
     
-    player
-print(all_tags)
+mutations = db.get_all_mutations_per_day("#YPLG2JGV")
+
+print(mutations["offense"])
+
+offense = [10,2,3,5,6,9,7]
+print(sum(offense))
+
+# offense = mutations["offense"]
+defense = mutations["defense"]
+
+field1 = "\n".join(str(attack) for attack in offense)
+
+print(field1)
+# field2 = "\n".join(defense)
+# now = datetime.datetime.now(datetime.UTC)
+
+# print(now.hour)
+
+ 
+# now_later = now + datetime.timedelta(days=1)
+# now_earlier = now + datetime.timedelta(days=-1)
+# print(now_later)
+# print(now_earlier)
 
 
 
@@ -33,37 +37,70 @@ print(all_tags)
 
 
 
-
-
-
-
-# # player = Player("#LJCLPU0PC")
-# # trophies = player.get_trophies()
-# # db.add_player_to_group(group=1, player= player, trophies=trophies)
-
-# # Get every tag you want to check
-# player_group = db.get_all_groups(768847345889575020)
-# print(player_group)
-
-# # #store every tag in a list
-# # all_groups = db.get_all_groups(interaction.guild.id)
-# group_names = [record.group for record in player_group]
-# group_names_unique = list(set(group_names))
-# print(group_names_unique)
-# #Check every individual tag for changes
-# # while True:
-
-# #     for tag in tags_to_check:
-# #         player = Player(tag)
-# #         new_trophies = player.get_trophies()
-# #         current_trophies = player.get_db_trophies()
+# async def legend_feed(channel: discord.TextChannel, guild_id: int):
+#     db = Database(database_type="sqlite", url_database="instances/legend_league.db")
+    
+#     # Get tags from all groups
+#     player_group = db.get_all_groups(guild_id=guild_id)
+    
+#     #store every tag in a list
+#     tags_to_check = [record.tag for record in player_group]
+#     mutations = []
+#     #Check every individual tag for changes
+#     for tag in tags_to_check:
+#         info = []
+#         player = Player(tag)
+#         player_info = player.get_all_player_info()
         
-# #         if new_trophies != current_trophies:
-# #             db.add_mutation(account_tag=tag, current_trophies=current_trophies, new_trophies=new_trophies)
-# #         else:
-# #             print("Current is the same as new")
-# #     time.sleep(60)
-        
-    
+#         new_trophies = player_info["trophies"]
+#         current_trophies = player.get_db_trophies()
+#         delta_trophies = new_trophies - current_trophies
+                       
+#         #TODO add all changes to a list in a list as a string with: emoji, cups, name
+#         #TODO make an embed with multiple pages, every page shows Title: name; Description: overview, total begin total now +/- and details with every attack. footer is group_name           
+#         if new_trophies > current_trophies:
+#             db.add_mutation(account_tag=tag, current_trophies=current_trophies, new_trophies=new_trophies)
+#             custom_embed = discord.Embed(
+#                 title=player_info["name"],
+#                 color= discord.Color.from_rgb(0, 200, 0),
+#                 description= f"{client.get_emoji(emoji.get_emoji("plus_trophy"))} {delta_trophies}"
+#             ) 
+#             custom_embed.set_footer(text=tag)
+#             mutations.append(custom_embed)
 
-    
+#             # await channel.send(embed=custom_embed)  
+
+#         elif new_trophies < current_trophies:
+#             db.add_mutation(account_tag=tag, current_trophies=current_trophies, new_trophies=new_trophies)
+#             custom_embed = discord.Embed(
+#                 title=player_info["name"],
+#                 colour= discord.Colour.from_rgb(254, 0,0),
+#                 description= f"{client.get_emoji(emoji.get_emoji("min_trophy"))} {delta_trophies}"
+#             ) 
+#             custom_embed.set_footer(text=tag)
+#             mutations.append(custom_embed)
+            
+#             # await channel.send(embed=custom_embed)  
+        
+               
+#     if len(mutations) > 0:            
+#         current_page = 0
+        
+#         message = await channel.send(embed=mutations[current_page])
+#         await message.add_reaction("◀️")  # Left arrow reaction
+#         await message.add_reaction("▶️")  # Right arrow reaction
+
+#         while True:
+#             try:
+#                 reaction, user = await client.wait_for('reaction_add', timeout=60.0)
+
+#                 if str(reaction.emoji) == "▶️":
+#                     current_page = (current_page + 1) % len(mutations)
+#                 elif str(reaction.emoji) == "◀️":
+#                     current_page = (current_page - 1) % len(mutations)
+
+#                 await message.edit(embed=mutations[current_page])
+#                 await message.remove_reaction(reaction, user)
+
+#             except TimeoutError:
+#                 break
