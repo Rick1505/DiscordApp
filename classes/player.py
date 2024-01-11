@@ -1,7 +1,7 @@
 import os
 import requests
 import urllib
-from not_main.database import Database
+from database.database import BotDatabase
 import datetime
 
 from typing import List
@@ -50,7 +50,7 @@ class Player():
             return False
                 
     def get_legend_history(self):
-        db = Database("sqlite", "instances/legend_league.db")
+        db = BotDatabase("database/legend_league.db")
         return db.get_user_information(user_tag=self.account_tag)
     
     def change_season_to_dates(self, legend_history: List):
@@ -75,7 +75,7 @@ class Player():
     
     #Get the latest recorded trophies in the database of a player
     def get_db_trophies(self):
-        db = Database("sqlite", "instances/legend_league.db")
+        db = BotDatabase("database/legend_league.db")
         db.get_player_trophies(account_tag= self.account_tag)   
         return db.get_player_trophies(account_tag= self.account_tag)        
         

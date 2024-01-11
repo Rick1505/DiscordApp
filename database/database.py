@@ -1,26 +1,26 @@
 from sqlalchemy import create_engine, Column, Integer, String, text, delete, and_, update
 from sqlalchemy.orm import sessionmaker
-from not_main.db_models.db_model import User, NationalityUser, GroupUser, TrackedUser, Base
+from classes.db_models.db_model import User, NationalityUser, GroupUser, TrackedUser, Base
 import datetime 
 
-class Database():
-    def __init__(self, database_type: str, url_database: str) -> None:
-        self.engine = create_engine(f'{database_type}:///{url_database}')
+class BotDatabase():
+    def __init__(self, url_database: str) -> None:
+        self.engine = create_engine(f'sqlite:///{url_database}')
         self.Session = sessionmaker(bind=self.engine)
         self.session = self.Session()
         self.Base = Base
+        self.initiate_db()
+        
+        
+    def initiate_db(self):
+        self.Base.metadata.create_all(self.engine)
 
     def create_specific_table(self, table):
         self.Base.metadata.create_all(self.engine, tables = [table.__table__])
         
-    def create_all_tables(self):
-        self.Base.metadata.create_all(self.engine)
-    
     
     #LEGEND_TROPHIES TABLE       
-    def add_season_to_legend_db(self, data: list, season: str):
-        self.create_specific_table(User)
-        
+    def add_season_to_legend_db(self, data: list, season: str):       
         #Add users to a list
         data_to_add = [User(season=season, tag=item["tag"], name=item["name"], rank=item["rank"], trophies=item["trophies"]) for item in data]
         
@@ -34,8 +34,6 @@ class Database():
 
     #LOCATIONS TABLE
     def add_dutch_players(self, data : list, country: str):
-        self.create_specific_table(NationalityUser)
-    
         #Add all data to list
         data_to_add = [[item["tag"], item["name"], country] for item in data]    
         
@@ -52,11 +50,10 @@ class Database():
         
         self.session.commit()
     
+    
     #TRACKED_USERS TABLE          
     def add_mutation(self, account_tag, current_trophies, new_trophies):
-        #Create the table
-        self.create_specific_table(TrackedUser)
-        
+        """Adds a mutation to the table mutations"""
         #Calculate the difference in trophies
         delta_trophies = new_trophies - current_trophies
         
@@ -66,19 +63,25 @@ class Database():
         self.session.commit()  
         
     def get_player_trophies(self, account_tag: str):
-        self.create_specific_table(TrackedUser)
-
-        #Gets the latest player trophies in the database
+        """Gets the latest player trophies in the database"""
         data = self.session.query(TrackedUser.current_trophies).filter_by(tag=account_tag).order_by(TrackedUser.id.desc()).first()
         return data.current_trophies
     
     def check_if_player_is_tracked(self, account_tag: str) -> bool:
-        self.create_specific_table(TrackedUser)
-
+        """
+        Checks if a plyer is tracked in the mutations\n
+        Returns False if a player is not tracked
+        """
         #Returns False if not tracked, returns True if tracked
         return self.session.query(TrackedUser.id).filter_by(tag=account_tag).first() is not None
 
     def get_all_mutations_per_day(self, account_tag: str) -> dict:
+        """
+        This function returns a dictionary with two attributes.
+        Offense: all positive mutations of the legend day
+        Defense: all negative mutations of the legend sday
+        """
+        
         #Get current time in UTC
         now = datetime.datetime.now(datetime.UTC)
         tomorrow = now + datetime.timedelta(days=1)  
@@ -119,18 +122,17 @@ class Database():
         
     #GROUPS TABLE    TODO ADD GUILD_ID
     def get_all_from_group(self, group_id: int, guild_id: int):
-        #Gets all the objects from a specific group
-        self.create_specific_table(GroupUser)
-        
+        """Gets all the objects from a specific group"""
         return self.session.query(GroupUser).filter_by(group=group_id, guild=guild_id).all()
     
     def get_all_groups(self, guild_id: int):
-        #Gets all the objects in all groups
+        """Returns all the objects in every group"""
         return self.session.query(GroupUser).filter_by(guild = guild_id).all()
     
-    def add_player_to_group(self, group: str, player, guild_id: int):
-        self.create_specific_table(GroupUser)
-        
+    def add_player_to_group(self, group: str, player, guild_id: int) -> str:
+        """This function adds a player to a group in the table 'Groups'
+        It returns a string whether an user is added or not
+        """
         #Check if player is already added to the group in the current guild
         exists = self.session.query(GroupUser.id).filter_by(tag=player.account_tag, group=group, guild = guild_id).first() is not None
                 
@@ -160,8 +162,11 @@ class Database():
             #Return error player is in the group
             return "User is already in the group"
     
-    def rm_player(self,player: str, guild_id:int):
-        #delete the user from a specific group
+    def rm_player(self,player: str, guild_id:int) -> str:
+        """
+        Deletes the user from all groups in this specific guild.\n
+        Returns a string that tells you the user has been deleted
+        """
         delete_statement = delete(GroupUser).where(and_(GroupUser.guild==guild_id, GroupUser.tag==player))
         
         self.session.execute(delete_statement)
@@ -170,11 +175,15 @@ class Database():
         return "User has been deleted"
 
     def get_current_group(self, account: str, guild_id: int):
+        """Returns the group name of a specific group an account is in"""
         response = self.session.query(GroupUser).filter_by(guild=guild_id, tag=account).scalar()
         return response.group
     
-    def change_player_group(self, account: str, new_group: str, guild_id: int):
-        
+    def change_player_group(self, account: str, new_group: str, guild_id: int) -> str:
+        """
+        Changes the group for a specific player in the guild the action has been performed\n
+        Returns a string whether the user has been updated or not
+        """
         update_statement = update(GroupUser).where(and_(GroupUser.guild == guild_id, GroupUser.tag==account)).values(group=new_group)
         
         self.session.execute(update_statement)
@@ -187,6 +196,7 @@ class Database():
             return "There has ben an error"
     
     def get_player_from_group(self, guild_id, account_tag):
+        """Returns a player object from a specific group in the current guild"""
         return self.session.query(GroupUser).filter_by(guild=guild_id, tag=account_tag).scalar()
         
         

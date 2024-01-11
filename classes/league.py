@@ -1,7 +1,7 @@
 import requests
 import os
 from urllib import parse
-from not_main.database import Database
+from database.database import BotDatabase
 
 
 API_TOKEN = os.getenv("API_TOKEN_COC")
@@ -33,7 +33,7 @@ class League():
         return data["iconUrls"]["tiny"]
     
     def add_players_to_legend_db(self):
-        db = Database(database_type="sqlite", url_database="instances/legend_league.db")
+        db = BotDatabase(url_database="database/legend_league.db")
         seasons= ["2021-01"]        
                 
         for s in seasons:           

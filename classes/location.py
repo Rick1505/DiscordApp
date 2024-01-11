@@ -1,7 +1,7 @@
 import requests
 import os
 from urllib import parse
-from not_main.database import Database
+from database.database import BotDatabase
 
 
 API_TOKEN = os.getenv("API_TOKEN_COC")

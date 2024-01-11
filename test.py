@@ -1,27 +1,30 @@
 from not_main.location import Location
-from not_main.database import Database
+from database.database import Database
 from not_main.player   import Player
 from not_main.clan     import Clan
 import datetime
+import requests
+import os
+import urllib
 import time
 
-db = Database(database_type="sqlite", url_database="instances/legend_league.db")
+# db = Database(database_type="sqlite", url_database="instances/legend_league.db")
     
-mutations = db.get_all_mutations_per_day("#YPLG2JGV")
+# mutations = db.get_all_mutations_per_day("#YPLG2JGV")
 
-print(mutations["offense"])
+# print(mutations["offense"])
 
-offense = [10,2,3,5,6,9,7]
-print(sum(offense))
+# offense = [10,2,3,5,6,9,7]
+# print(sum(offense))
 
-# offense = mutations["offense"]
-defense = mutations["defense"]
+# # offense = mutations["offense"]
+# defense = mutations["defense"]
 
-field1 = "\n".join(str(attack) for attack in offense)
+# field1 = "\n".join(str(attack) for attack in offense)
 
-print(field1)
-# field2 = "\n".join(defense)
-# now = datetime.datetime.now(datetime.UTC)
+# print(field1)
+# # field2 = "\n".join(defense)
+# # now = datetime.datetime.now(datetime.UTC)
 
 # print(now.hour)
 
