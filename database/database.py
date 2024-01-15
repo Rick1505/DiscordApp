@@ -1,7 +1,11 @@
-from sqlalchemy import create_engine, Column, Integer, String, text, delete, and_, update
-from sqlalchemy.orm import sessionmaker
-from classes.db_models.db_model import User, NationalityUser, GroupUser, TrackedUser, Base
 import datetime 
+
+
+from sqlalchemy import create_engine, Column, Integer, String, text, delete, and_, update
+from sqlalchemy.exc import NoResultFound
+from sqlalchemy.orm import sessionmaker
+from database.db_models.db_model import User, NationalityUser, GroupUser, TrackedUser, LegendStart, Base
+from datetime import date
 
 class BotDatabase():
     def __init__(self, url_database: str) -> None:
@@ -92,13 +96,13 @@ class BotDatabase():
         if now.hour >= 6:
             
             #If it is after set begin_time as today, end_time as tomorrow
-            begin_time = datetime.datetime(now.year,now.month, now.day,6,0,0,0, datetime.UTC)
-            end_time = datetime.datetime(tomorrow.year, tomorrow.month, tomorrow.day,6,0,0,0,datetime.UTC)   
+            begin_time = datetime.datetime(now.year,now.month, now.day,5,0,0,0, datetime.UTC)
+            end_time = datetime.datetime(tomorrow.year, tomorrow.month, tomorrow.day,5,0,0,0,datetime.UTC)   
         else:
 
             #If it is before set begin_time as yesterday, end_time as today
-            begin_time = datetime.datetime(yesterday.year,yesterday.month, yesterday.day,6,0,0,0, datetime.UTC) 
-            end_time = datetime.datetime(now.year,now.month, now.day,6,0,0,0, datetime.UTC)
+            begin_time = datetime.datetime(yesterday.year,yesterday.month, yesterday.day,5,0,0,0, datetime.UTC) 
+            end_time = datetime.datetime(now.year,now.month, now.day,5,0,0,0, datetime.UTC)
             
         data = self.session.query(TrackedUser.delta_trophies).filter(TrackedUser.date > begin_time, TrackedUser.date < end_time, TrackedUser.tag == account_tag).all()
         data = [record.delta_trophies for record in data]        
@@ -121,6 +125,11 @@ class BotDatabase():
                 
         
     #GROUPS TABLE    TODO ADD GUILD_ID
+    def get_all_unique_tags(self):
+        data = self.session.query(GroupUser.tag).all()
+        all_tags =  [record.tag for record in data]
+        return set(all_tags)
+    
     def get_all_from_group(self, group_id: int, guild_id: int):
         """Gets all the objects from a specific group"""
         return self.session.query(GroupUser).filter_by(group=group_id, guild=guild_id).all()
@@ -129,27 +138,29 @@ class BotDatabase():
         """Returns all the objects in every group"""
         return self.session.query(GroupUser).filter_by(guild = guild_id).all()
     
-    def add_player_to_group(self, group: str, player, guild_id: int) -> str:
+    async def add_player_to_group(self, group: str, player, guild_id: int) -> str:
         """This function adds a player to a group in the table 'Groups'
         It returns a string whether an user is added or not
         """
+        
+        account_tag = player.account_tag
         #Check if player is already added to the group in the current guild
-        exists = self.session.query(GroupUser.id).filter_by(tag=player.account_tag, group=group, guild = guild_id).first() is not None
+        exists = self.session.query(GroupUser.id).filter_by(tag=account_tag, group=group, guild = guild_id).first() is not None
                 
         if not exists:
-            name = player.get_name()
+            name = await player.get_name()
             #If player isn't in the group add it to group
-            self.session.add(GroupUser(group=group, tag=player.account_tag, guild = guild_id, name=name))
+            self.session.add(GroupUser(group=group, tag=account_tag, guild = guild_id, name=name))
             
             #Also check if player is tracked already
-            is_tracked = self.check_if_player_is_tracked(player.account_tag)
+            is_tracked = self.check_if_player_is_tracked(account_tag)
             self.session.commit()
             
             if not is_tracked:
                 #If not tracked get player trophies
-                current_trophies = player.get_trophies()
+                current_trophies = await player.get_trophies()
                 #Add player to TRACKED_USERS Table
-                self.add_mutation(account_tag=player.account_tag, current_trophies=0, new_trophies=current_trophies)
+                self.add_mutation(account_tag=account_tag, current_trophies=0, new_trophies=current_trophies)
                 self.session.commit()
                 self.session.close()
                 return "User is starting to get tracked and has been added to the group"
@@ -198,6 +209,23 @@ class BotDatabase():
     def get_player_from_group(self, guild_id, account_tag):
         """Returns a player object from a specific group in the current guild"""
         return self.session.query(GroupUser).filter_by(guild=guild_id, tag=account_tag).scalar()
+        
+        
+    #LEGEND_START TABLE
+    def add_legend_start(self, players: list[tuple]):
+        #players ia list of tuples with format: (account_tag, trophies)
+        
+        mutations = [LegendStart(tag= tuple[0], trophies = tuple[1], date = datetime.date.today()) for tuple in players]
+        self.session.add_all(mutations)
+        self.session.commit()
+        
+    def get_legend_start(self, account_tag: str, date: date):
+        try:
+            query = self.session.query(LegendStart.trophies).filter_by(tag=account_tag, date=date).scalar()
+        except NoResultFound as e:
+            return e
+        else:
+            return query
         
         
         

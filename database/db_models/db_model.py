@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, Date
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -39,4 +39,12 @@ class GroupUser(Base):
     tag = Column(String)
     name = Column(String)
     group = Column(String)
-
+    
+    
+class LegendStart(Base):
+    __tablename__ = "legend_start"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tag = Column(String)
+    trophies = Column(Integer)
+    date = Column(Date)

@@ -1,14 +1,16 @@
 import discord
+import aiohttp
 
 from discord.ext import commands
 from discord import app_commands
-from classes.player import Player
-from classes.league import League
-from classes.utils  import make_embed
-from classes.emojis import Emoji
+from API.player import Player
+from API.league import League
+from utils  import make_embed
+from design.emojis import Emoji
+from bot import MyBot
 
 class PlayerInfo(commands.GroupCog, name="player"):
-    def __init__(self, bot):
+    def __init__(self, bot: MyBot):
         self.bot = bot
         self.db = bot.dbconn
         self.emoji = Emoji() 
@@ -17,10 +19,9 @@ class PlayerInfo(commands.GroupCog, name="player"):
     @app_commands.command(name = "equipment", description = "This will show you the hero equipment of a player")
     @app_commands.rename(account_tag = "account")
     @app_commands.describe(account_tag = "The account tag you want to check formatedd in '#ACCOUNT' ")
-    async def best_trophies(self, interaction: discord.Interaction, account_tag: str ):
-        
+    async def best_trophies(self, interaction: discord.Interaction, account_tag: str ):      
         player = Player(account_tag=account_tag)
-        info = player.get_all_player_info()
+        info = await player.get_all_player_info()
         hero_equip = info["heroEquipment"]
         embed = discord.Embed(title= info["name"], color=discord.Colour.from_rgb(0, 150, 255))
         
@@ -35,14 +36,13 @@ class PlayerInfo(commands.GroupCog, name="player"):
     @app_commands.describe(account_tag = "The account tag you want to check formatedd in '#ACCOUNT' ")
     async def display_legend_seasons(self, interaction: discord.Interaction, account_tag: str): 
         await interaction.response.defer()
-
         player = Player(account_tag=account_tag)
         league = League()
         
-        info = player.get_all_player_info()
-        legend_info = player.get_legend_history()
+        info = await player.get_all_player_info()
+        legend_info = await player.get_legend_history()
             
-        legend_info_dates = player.change_season_to_dates(legend_info)   
+        legend_info_dates = await player.change_season_to_dates(legend_info)   
         description = []
         
         for year in range(2023, 2020, -1):
@@ -62,7 +62,7 @@ class PlayerInfo(commands.GroupCog, name="player"):
            title = "Legend seasons",
            author_icon = info["clan"]["badgeUrls"]["medium"],
            author_text = info["name"],
-           thumbnail_url = league.get_specific_league_image(info["league"]["id"]),
+           thumbnail_url = await league.get_specific_league_image(info["league"]["id"]),
            description=description,
            footer_text = info["tag"],
         )

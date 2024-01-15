@@ -1,6 +1,7 @@
 from datetime   import datetime
 from typing     import Any, List, Literal, Optional, Tuple, Union
 from discord    import Colour, Embed
+
 def make_embed(
         *,
         title: str = None,

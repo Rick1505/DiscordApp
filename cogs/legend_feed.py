@@ -1,22 +1,24 @@
 import discord
+import aiohttp
 import asyncio
+import nest_asyncio
 
 from discord.ext    import commands, tasks
 from discord        import app_commands
-from classes.player import Player
+from API.player     import Player
 from typing         import List
-from classes.emojis import Emoji
+from design.emojis  import Emoji
+from bot            import MyBot
 
 
 
 class LegendFeed(commands.GroupCog, name="legend"):
     """Uses all information to create a legend feed"""
-    def __init__(self, bot) -> None:
+    def __init__(self, bot: MyBot) -> None:
         self.bot = bot
         self.db = bot.dbconn
         self.emoji = Emoji()
-    
-        
+         
     async def creates_embed_player_overview(self, player_name:str, player_tag: str, group_name: str) -> discord.Embed:
         """Creates a discord embed for a legend_overview of a player"""       
         data = self.db.get_all_mutations_per_day(account_tag=player_tag)
@@ -64,13 +66,13 @@ class LegendFeed(commands.GroupCog, name="legend"):
                 await message.remove_reaction(reaction, user)
 
             except TimeoutError:
-                await message.clear_reactions()
-                break   
+                message.clear_reactions()
+                break     
    
     #THIS WILL POST LEGEND HITS EVERY 60 SECONDS
     @tasks.loop(seconds=60) 
     async def legend_feed(self, channel, guild_id: int):
-      
+        
         # Get tags from all groups
         player_group = self.db.get_all_groups(guild_id=guild_id)
         
@@ -82,16 +84,17 @@ class LegendFeed(commands.GroupCog, name="legend"):
         embed_embeds = []
         
         #Check every individual tag for changes
-        for tag in tags_to_check:
+        for tag in tags_to_check:           
             info = {}
-            player = Player(tag)
-            player_info = player.get_all_player_info()
+            
+            player = Player(account_tag=tag)
+            player_info = await player.get_all_player_info()
             
             #Calculating trophies
             new_trophies = player_info["trophies"]
-            current_trophies = player.get_db_trophies()
+            current_trophies = await player.get_db_trophies()
             #CHANGE TO DELTA
-            delta_trophies = current_trophies
+            delta_trophies = new_trophies - current_trophies
                             
             #TODO add all changes to a list in a list as a string with: emoji, cups, name
             #TODO make an embed with multiple pages, every page shows Title: name; Description: overview, total begin total now +/- and details with every attack. footer is group_name
@@ -171,7 +174,7 @@ class LegendFeed(commands.GroupCog, name="legend"):
 
                         
             if len(embeds) > 0:
-                await self.create_embed_paging()
+                await self.create_embed_paging(embeds, channel=channel)
         else:
             pass
 
@@ -180,7 +183,9 @@ class LegendFeed(commands.GroupCog, name="legend"):
     @app_commands.rename(channel = "channel")
     @app_commands.describe(channel = "The channel you want the bot to post all hits in")
     async def set_channel(self, interaction: discord.Interaction, channel: discord.TextChannel):
-        self.legend_feed.start(channel, interaction.guild.id)
+        nest_asyncio.apply()
+        
+        self.legend_feed.start(channel=channel, guild_id=interaction.guild.id)
         
         await interaction.response.send_message(f"The channel has successfully been set {channel}")
         

@@ -2,6 +2,7 @@ import requests
 import os
 from urllib import parse
 from database.database import BotDatabase
+import aiohttp
 
 
 API_TOKEN = os.getenv("API_TOKEN_COC")
@@ -10,11 +11,8 @@ BASE_URL_LEAGUE = "https://api.clashofclans.com/v1/locations/"
 class Location():
 
     def __init__(self) -> None:
-        self.headers = {
-            'Authorization': f'Bearer {API_TOKEN}',
-            'content-type': 'application/json',
-            "charset": "utf-8"
-        }
+        self.api_session = aiohttp.ClientSession()
+
         self.netherlands_id = 32000166
         self.belgium_id = 32000029
 

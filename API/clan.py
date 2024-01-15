@@ -1,20 +1,18 @@
 import os
 import requests
 from urllib import parse
+from discord.ext import commands
+import aiohttp
 
 API_TOKEN = os.getenv("API_TOKEN_COC")
 BASE_URL_CLAN = "https://api.clashofclans.com/v1/clans/"
 
 class Clan():
     
-    def __init__(self, clan_tag : str) -> None:
-        self.clan_tag = clan_tag
-        self.headers = {
-            'Authorization': f'Bearer {API_TOKEN}',
-            'content-type': 'application/json',
-            "charset": "utf-8"
-        }
-        
+    def __init__(self, clan_tag) -> None:
+        self.clan_tag = clan_tag 
+        self.api_session = aiohttp.ClientSession()
+  
     
     def get_clan_info(self):
         url = f'{BASE_URL_CLAN}{self.clan_tag}'
