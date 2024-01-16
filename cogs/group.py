@@ -46,7 +46,6 @@ class LegendGroup(commands.GroupCog, name="group"):
         response = await self.db.add_player_to_group(group=group_to_add, player=player, guild_id=interaction.guild.id )
         
         await interaction.followup.send(response)    
-        await interaction.followup.send(response)    
     
     # #AUTO POPULATE FOR A PLAYER
     async def player_autocomplete(self,

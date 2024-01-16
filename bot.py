@@ -15,10 +15,11 @@ from dotenv             import load_dotenv
 description = "Discord Bot for a clash of clans server"
 
 prefix = "!"
-
+load_dotenv()
 MY_GUILD = discord.Object(int(os.getenv("TEST_GUILD_ID")))  # replace with your guild id
 MY_TOKEN = os.getenv("DISCORD_TOKEN_TUTORIAL")
 
+URL_DATABASE = "mysql+mysqlconnector://u30685_0LX0utZgil:%s@sql.ferox.host:3306/s30685_legend_league"
 SQLITE_FILE = "database/legend_league.db"
 
 class MyBot(commands.Bot):
@@ -28,7 +29,7 @@ class MyBot(commands.Bot):
     ):
         super().__init__(command_prefix=prefix, description=description, intents=discord.Intents.all())
         
-        self.dbconn: BotDatabase = BotDatabase(SQLITE_FILE)
+        self.dbconn: BotDatabase = BotDatabase(URL_DATABASE)
         self.initial_extensions = (
             "cogs.group",
             "cogs.legend_feed",

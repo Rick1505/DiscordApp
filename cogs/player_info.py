@@ -1,5 +1,5 @@
 import discord
-
+import asyncio
 
 from discord.ext import commands
 from discord import app_commands
@@ -20,6 +20,7 @@ class PlayerInfo(commands.GroupCog, name="player"):
     @app_commands.rename(account_tag = "account")
     @app_commands.describe(account_tag = "The account tag you want to check formatedd in '#ACCOUNT' ")
     async def best_trophies(self, interaction: discord.Interaction, account_tag: str ):      
+       
         player = Player(account_tag=account_tag)
         info = await player.get_all_player_info()
         hero_equip = info["heroEquipment"]

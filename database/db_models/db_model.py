@@ -1,50 +1,51 @@
-from sqlalchemy import Column, Integer, String, DateTime, Date
+from sqlalchemy import Column, Integer, String, DateTime, Date, DECIMAL
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm     import Mapped, mapped_column
 
 Base = declarative_base()
 
 class User(Base):
     __tablename__ = 'legend_seasons'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    season = Column(String)
-    tag = Column(String)
-    name = Column(String)
-    rank = Column(Integer)
-    trophies = Column(Integer) 
+    id:Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    season: Mapped[str] = mapped_column(String(20))
+    tag: Mapped[str] = mapped_column(String(15))
+    name: Mapped[str] = mapped_column(String(30))
+    rank: Mapped[int]
+    trohpies: Mapped[int]
     
 
 class NationalityUser(Base):
     __tablename__ = "players_nationality"
     
-    tag = Column(String, primary_key=True, unique=True)
-    name = Column(String)
-    country = Column(String)
+    tag: Mapped[str]= mapped_column(String(15), primary_key=True, unique=True)
+    name: Mapped[str] = mapped_column(String(30))
+    country: Mapped[str] = mapped_column(String(30))
     
     
 class TrackedUser(Base):
     __tablename__ = "legend_mutations"
     
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    tag = Column(String)
-    current_trophies = Column(Integer)
-    delta_trophies = Column(Integer)
-    date = Column(DateTime)
+    id:Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    tag: Mapped[str]= mapped_column(String(15))
+    current_trophies: Mapped[int]
+    delta_trophies: Mapped[int]
+    date: Mapped[DateTime] = mapped_column(DateTime())
     
 class GroupUser(Base):
     __tablename__ = "user_groups"
     
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    guild = Column(Integer)
-    tag = Column(String)
-    name = Column(String)
-    group = Column(String)
+    id:Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    guild: Mapped[str] = mapped_column(String(30))
+    tag: Mapped[str]= mapped_column(String(15))
+    name: Mapped[str] = mapped_column(String(30))
+    group: Mapped[str] = mapped_column(String(30))
     
     
 class LegendStart(Base):
     __tablename__ = "legend_start"
     
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    tag = Column(String)
-    trophies = Column(Integer)
-    date = Column(Date)
+    id:Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    tag: Mapped[str]= mapped_column(String(15))
+    trophies: Mapped[int]
+    date: Mapped[Date] = mapped_column(Date())

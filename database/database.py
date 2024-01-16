@@ -1,15 +1,20 @@
 import datetime 
 
-
+from urllib.parse import quote_plus
 from sqlalchemy import create_engine, Column, Integer, String, text, delete, and_, update
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import sessionmaker
 from database.db_models.db_model import User, NationalityUser, GroupUser, TrackedUser, LegendStart, Base
 from datetime import date
 
+DATABASE_HOST = "database.consulhosting.nl"
+DATABASE_PORT = "3306"
+DATABASE_PASSWORD = "W=F^2eB.gExlcZF.3FAqQoh2"
+DATBASE_USER = "u5770_r3kyvfwAYx"
+DATABASE_PASSWORD_UPDATED = quote_plus(DATABASE_PASSWORD)
 class BotDatabase():
     def __init__(self, url_database: str) -> None:
-        self.engine = create_engine(f'sqlite:///{url_database}')
+        self.engine = create_engine(f"mysql+mysqlconnector://{DATBASE_USER}:{DATABASE_PASSWORD_UPDATED}@{DATABASE_HOST}:{DATABASE_PORT}/s30685_legend_league")
         self.Session = sessionmaker(bind=self.engine)
         self.session = self.Session()
         self.Base = Base
@@ -142,13 +147,13 @@ class BotDatabase():
         """This function adds a player to a group in the table 'Groups'
         It returns a string whether an user is added or not
         """
-        
-        account_tag = player.account_tag
+        player_info = await player.get_all_player_info()
+        account_tag = player_info["tag"]
         #Check if player is already added to the group in the current guild
         exists = self.session.query(GroupUser.id).filter_by(tag=account_tag, group=group, guild = guild_id).first() is not None
                 
         if not exists:
-            name = await player.get_name()
+            name = player_info["name"]
             #If player isn't in the group add it to group
             self.session.add(GroupUser(group=group, tag=account_tag, guild = guild_id, name=name))
             
@@ -158,7 +163,8 @@ class BotDatabase():
             
             if not is_tracked:
                 #If not tracked get player trophies
-                current_trophies = await player.get_trophies()
+                
+                current_trophies = player_info["trophies"]
                 #Add player to TRACKED_USERS Table
                 self.add_mutation(account_tag=account_tag, current_trophies=0, new_trophies=current_trophies)
                 self.session.commit()
