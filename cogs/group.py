@@ -1,5 +1,4 @@
 import discord
-import aiohttp
 import pandas
 import datetime
 
@@ -110,6 +109,10 @@ class LegendGroup(commands.GroupCog, name="group"):
             player_dict["delta"] = delta
             
             begin_trophies = self.db.get_legend_start(account_tag=tag, date=datetime.date.today())
+
+            if not begin_trophies:
+                begin_trophies = 0
+           
             player_dict["start"] = begin_trophies
             player_dict["now"] = begin_trophies + delta
 

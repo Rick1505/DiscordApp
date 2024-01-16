@@ -10,6 +10,8 @@ class Emoji():
             "min_trophy":1193226714046804040,
 
         }
+        
+        self.numbers_emojis = ["⏪", "1️⃣", "2️⃣","3️⃣","4️⃣", "5️⃣","6️⃣","7️⃣", "8️⃣","9️⃣"]
     
     def get_emoji(self, emoji: str):
         return self.custom_emojis[emoji]

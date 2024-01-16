@@ -1,9 +1,7 @@
 import discord
 import os
 import traceback
-import aiohttp
-import asyncio
-import nest_asyncio
+
 
 
 from discord.ext        import commands,tasks
@@ -35,7 +33,8 @@ class MyBot(commands.Bot):
             "cogs.group",
             "cogs.legend_feed",
             "cogs.player_info",
-            "cogs.background_tasks"
+            "cogs.background_tasks",
+            "design.custom_embeds"
         )
    
     async def setup_hook(self):

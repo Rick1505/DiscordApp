@@ -1,19 +1,19 @@
 import discord
-import aiohttp
+
 
 from discord.ext import commands
 from discord import app_commands
 from API.player import Player
 from API.league import League
 from utils  import make_embed
-from design.emojis import Emoji
+from design import emojis
 from bot import MyBot
 
 class PlayerInfo(commands.GroupCog, name="player"):
     def __init__(self, bot: MyBot):
         self.bot = bot
         self.db = bot.dbconn
-        self.emoji = Emoji() 
+        self.emoji = emojis.Emoji() 
         
     #SHOW INFORMATION ABOUT THE HERO EQUIPMENT OF A PLAYER
     @app_commands.command(name = "equipment", description = "This will show you the hero equipment of a player")
@@ -68,5 +68,20 @@ class PlayerInfo(commands.GroupCog, name="player"):
         )
         await interaction.followup.send(embed=embed_legend_seasons)
 
+    @app_commands.command(name="legend_day", description="Shows information about the legend day of a player")
+    @app_commands.rename(account_tag="account")
+    @app_commands.describe(account_tag = "The account tag you want to check formatedd in '#ACCOUNT' ")
+    async def legend_day(self, interaction: discord.Interaction, account_tag: str):
+        await interaction.response.defer()
+        player = Player(account_tag=account_tag)
+        player_info = await player.get_all_player_info()
+        group = self.db.get_player_from_group(guild_id=interaction.guild_id, account_tag=account_tag).group
+
+        embed_cog = self.bot.get_cog("CustomEmbeds")
+        embed = await embed_cog.embed_player_overview(db = self.db, player_name= player_info["name"], player_tag= account_tag, group_name= group)
+
+        await interaction.followup.send(embed=embed)
+    
+    
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(PlayerInfo(bot))

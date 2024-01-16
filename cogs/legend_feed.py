@@ -1,6 +1,4 @@
 import discord
-import aiohttp
-import asyncio
 import nest_asyncio
 
 from discord.ext    import commands, tasks
@@ -9,8 +7,7 @@ from API.player     import Player
 from typing         import List
 from design.emojis  import Emoji
 from bot            import MyBot
-
-
+from time           import time
 
 class LegendFeed(commands.GroupCog, name="legend"):
     """Uses all information to create a legend feed"""
@@ -19,54 +16,26 @@ class LegendFeed(commands.GroupCog, name="legend"):
         self.db = bot.dbconn
         self.emoji = Emoji()
          
-    async def creates_embed_player_overview(self, player_name:str, player_tag: str, group_name: str) -> discord.Embed:
-        """Creates a discord embed for a legend_overview of a player"""       
-        data = self.db.get_all_mutations_per_day(account_tag=player_tag)
-        
-        offense = data["offense"]
-        defense = data["defense"]
-        
-        field1 = "\n".join(str(attack) for attack in offense)
-        field2 = "\n".join(str(defend) for defend in defense)
-        
-        description = f"""
-        __*Overview*__ \n
-        Total Offense: {sum(offense)}\n
-        Total Defense: {sum(defense)}
-        """
-        custom_embed = discord.Embed(
-            title=player_name,
-            description= description,
-            colour=discord.Colour.from_rgb(0, 150, 255)
-        )
-        custom_embed.add_field(name="**Offense**", value=field1, inline=True)
-        custom_embed.add_field(name="**Defense**", value=field2, inline=False)
-        
-        custom_embed.set_footer(text=group_name)
-        return custom_embed
-
 
     async def create_embed_paging(self, embeds: List, channel:discord.TextChannel):
         current_page = 0         
         
         message = await channel.send(embed=embeds[current_page])
-        for emoji in ['◀️', '▶️']:
-            await message.add_reaction(emoji)
-            
+        for x in range(len(embeds)):
+            await message.add_reaction(self.emoji.numbers_emojis[x])
+                    
         while True:
             try:
-                reaction, user = await self.bot.wait_for('reaction_add', timeout=300.0)
-
-                if str(reaction.emoji) == "▶️":
-                    current_page = (current_page + 1) % len(embeds)
-                elif str(reaction.emoji) == "◀️":
-                    current_page = (current_page - 1) % len(embeds)
+                reaction, user = await self.bot.wait_for('reaction_add', timeout=60)
+                
+                if str(reaction.emoji) in self.emoji.numbers_emojis and reaction.message == message:
+                    current_page = self.emoji.numbers_emojis.index(str(reaction.emoji))
 
                 await message.edit(embed=embeds[current_page])
                 await message.remove_reaction(reaction, user)
 
             except TimeoutError:
-                message.clear_reactions()
+                await message.clear_reactions()
                 break     
    
     #THIS WILL POST LEGEND HITS EVERY 60 SECONDS
@@ -81,7 +50,7 @@ class LegendFeed(commands.GroupCog, name="legend"):
         
         #Create list of mutations and embeds
         mutations = []
-        embed_embeds = []
+        all_embeds = []
         
         #Check every individual tag for changes
         for tag in tags_to_check:           
@@ -94,7 +63,7 @@ class LegendFeed(commands.GroupCog, name="legend"):
             new_trophies = player_info["trophies"]
             current_trophies = await player.get_db_trophies()
             #CHANGE TO DELTA
-            delta_trophies = new_trophies - current_trophies
+            delta_trophies = current_trophies
                             
             #TODO add all changes to a list in a list as a string with: emoji, cups, name
             #TODO make an embed with multiple pages, every page shows Title: name; Description: overview, total begin total now +/- and details with every attack. footer is group_name
@@ -107,7 +76,9 @@ class LegendFeed(commands.GroupCog, name="legend"):
                 info["group_name"] = self.db.get_player_from_group(guild_id=guild_id, account_tag=tag).group
                 info["delta_trophies"] = delta_trophies
                 
-                embed_embeds.append(await self.creates_embed_player_overview(info["name"], tag, info["group_name"]))
+                embed = self.bot.get_cog("CustomEmbeds")
+                
+                all_embeds.append(await embed.embed_player_overview(db = self.db, player_name= info["name"], player_tag= tag, group_name= info["group_name"]))
                 
                 #add information of mutation to list mutations
                 mutations.append(info)
@@ -119,17 +90,18 @@ class LegendFeed(commands.GroupCog, name="legend"):
             embeds = []
             counter = 1
             description = ""
-                
+            numbers = self.emoji.numbers_emojis    
             for mutation in mutations:
 
                 if mutation["delta_trophies"] > 0:
                     #Add positive mutation to description
-                    description =  description + (f"{counter} {self.bot.get_emoji(self.emoji.get_emoji("plus_trophy"))} {mutation["delta_trophies"]} {mutation["name"]}\n")
+                    
+                    description =  description + (f"{numbers[counter]} {self.bot.get_emoji(self.emoji.get_emoji("plus_trophy"))} {mutation["delta_trophies"]} {mutation["name"]}\n")
                     counter += 1
                     
                 else:
                     #Add negative mutation to description
-                    description = description +  (f"{counter} {self.bot.get_emoji(self.emoji.get_emoji("min_trophy"))} {mutation["delta_trophies"]} {mutation["name"]} \n")
+                    description = description +  (f"{numbers[counter]} {self.bot.get_emoji(self.emoji.get_emoji("min_trophy"))} {mutation["delta_trophies"]} {mutation["name"]} \n")
                     counter += 1
                     
             #Create embed with lists of mutations
@@ -140,11 +112,10 @@ class LegendFeed(commands.GroupCog, name="legend"):
             
             #add custom_embed to list of embeds
             embeds.append(custom_embed)
-            embeds = embeds + embed_embeds
+            embeds = embeds + all_embeds
             
             #check if there are any embeds
             if len(embeds) > 0:
-                
                 await self.create_embed_paging(embeds=embeds, channel=channel)
             
         elif len(mutations) == 1:
@@ -159,8 +130,7 @@ class LegendFeed(commands.GroupCog, name="legend"):
                     description= f"{self.bot.get_emoji(self.emoji.get_emoji(emoji="plus_trophy"))} {mutation["delta_trophies"]}"
                 ) 
                 custom_embed.set_footer(text=tag)
-                embeds.append(custom_embed)
-                
+                embeds.append(custom_embed)  
             else:
                 custom_embed = discord.Embed(
                     title=mutation["name"],
@@ -170,11 +140,11 @@ class LegendFeed(commands.GroupCog, name="legend"):
                 custom_embed.set_footer(text=tag)
                 embeds.append(custom_embed)
             
-            embeds = embeds + embed_embeds
+            embeds = embeds + all_embeds
 
                         
             if len(embeds) > 0:
-                await self.create_embed_paging(embeds, channel=channel)
+                await self.create_embed_paging(embeds=embeds, channel=channel)
         else:
             pass
 
