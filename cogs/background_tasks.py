@@ -11,7 +11,7 @@ class BackgroundTasks(commands.GroupCog, name="background"):
         self.db = bot.dbconn
         self.update_legend_start.start()
     
-    @tasks.loop(time=datetime.time(5,0,0))        
+    @tasks.loop(time=datetime.time(4,59,0))        
     async def update_legend_start(self):
         tuples = []
         
@@ -19,7 +19,7 @@ class BackgroundTasks(commands.GroupCog, name="background"):
         for tag in all_tags:
             player = Player(tag)
             trophies = await player.get_trophies()
-            tuples.append((player, trophies))
+            tuples.append((tag, trophies))
         
         self.db.add_legend_start(tuples)
         

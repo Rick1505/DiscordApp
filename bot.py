@@ -2,13 +2,12 @@ import discord
 import os
 import traceback
 
-
-
 from discord.ext        import commands,tasks
 from discord            import app_commands
 from database.database  import BotDatabase
 from typing             import Optional
 from dotenv             import load_dotenv
+from urllib.parse       import quote_plus
 
 
 
@@ -17,9 +16,16 @@ description = "Discord Bot for a clash of clans server"
 prefix = "!"
 load_dotenv()
 MY_GUILD = discord.Object(int(os.getenv("TEST_GUILD_ID")))  # replace with your guild id
-MY_TOKEN = os.getenv("DISCORD_TOKEN_TUTORIAL")
+MY_TOKEN = os.getenv("DISCORD_TOKEN")
 
-URL_DATABASE = "mysql+mysqlconnector://u30685_0LX0utZgil:%s@sql.ferox.host:3306/s30685_legend_league"
+DATABASE_HOST = os.getenv("DB_HOST") 
+DATABASE_PORT = os.getenv("DB_PORT") 
+DATABASE_PASSWORD = os.getenv("DB_PASSWORD") 
+DATBASE_USER = os.getenv("DB_USER") 
+
+DATABASE_PASSWORD_UPDATED = quote_plus(DATABASE_PASSWORD)
+URL_DATABASE = f"mysql+mysqlconnector://{DATBASE_USER}:{DATABASE_PASSWORD_UPDATED}@{DATABASE_HOST}:{DATABASE_PORT}/s5770_legend_league"
+
 SQLITE_FILE = "database/legend_league.db"
 
 class MyBot(commands.Bot):

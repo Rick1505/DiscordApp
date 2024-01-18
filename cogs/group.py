@@ -104,7 +104,7 @@ class LegendGroup(commands.GroupCog, name="group"):
             
             player_dict["offense"] = len(mutations["offense"])
             player_dict["defense"] = len(mutations["defense"])
-            delta = sum(mutations["offense"]) - sum(mutations["defense"])
+            delta = sum(mutations["offense"]) + sum(mutations["defense"])
             player_dict["delta"] = delta
             
             begin_trophies = self.db.get_legend_start(account_tag=tag, date=datetime.date.today())

@@ -6,7 +6,7 @@ from database.database import BotDatabase
 from design.emojis import Emoji
 from bot import MyBot
 
-class CustomEmbeds(commands.GroupCog):
+class CustomEmbeds(commands.Cog):
     def __init__(self, bot: MyBot) -> None:
           self.bot = bot
           self.db = bot.dbconn
@@ -43,8 +43,8 @@ class CustomEmbeds(commands.GroupCog):
             #Create fields
             overview_info = f'Daystart: {self.bot.get_emoji(plus_trophy)} {begin_trophies}\nCurrent: {self.bot.get_emoji(min_trophy)} {current_trophies}\n'
             total_info = f'Offense: {self.bot.get_emoji(plus_trophy)} {sum_offense}\nDefense: {self.bot.get_emoji(min_trophy)} {sum_defense}'   
-            offensive_info = "\n".join(f"{self.bot.get_emoji(emoji.get_emoji("plus_trophy"))}{str(attack)}"  for attack in offense)
-            defensive_info = "\n".join(f"{self.bot.get_emoji(emoji.get_emoji("min_trophy"))}{str(defend)}" for defend in defense)
+            offensive_info = "\n".join(f"{self.bot.get_emoji(emoji.get_emoji('plus_trophy'))}{str(attack)}"  for attack in offense)
+            defensive_info = "\n".join(f"{self.bot.get_emoji(emoji.get_emoji('min_trophy'))}{str(defend)}" for defend in defense)
 
             custom_embed.add_field(name="Overview", value=overview_info, inline=True)
             custom_embed.add_field(name="Total", value=total_info, inline=False)

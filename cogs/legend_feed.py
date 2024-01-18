@@ -61,12 +61,10 @@ class LegendFeed(commands.GroupCog, name="legend"):
             
             #Calculating trophies
             new_trophies = player_info["trophies"]
-            current_trophies = await player.get_db_trophies()
-            #CHANGE TO DELTA
-            delta_trophies = current_trophies
+            current_trophies = await player.get_db_trophies(db= self.db)
+            #TODO CHANGE TO DELTA
+            delta_trophies = new_trophies - current_trophies
                             
-            #TODO add all changes to a list in a list as a string with: emoji, cups, name
-            #TODO make an embed with multiple pages, every page shows Title: name; Description: overview, total begin total now +/- and details with every attack. footer is group_name
             if delta_trophies != 0:
                 #adds mutation to database
                 self.db.add_mutation(account_tag=tag, current_trophies=current_trophies, new_trophies=new_trophies)
@@ -96,12 +94,12 @@ class LegendFeed(commands.GroupCog, name="legend"):
                 if mutation["delta_trophies"] > 0:
                     #Add positive mutation to description
                     
-                    description =  description + (f"{numbers[counter]} {self.bot.get_emoji(self.emoji.get_emoji("plus_trophy"))} {mutation["delta_trophies"]} {mutation["name"]}\n")
+                    description =  description + f'{numbers[counter]} {self.bot.get_emoji(self.emoji.get_emoji("plus_trophy"))} {mutation["delta_trophies"]} {mutation["name"]}\n'
                     counter += 1
                     
                 else:
                     #Add negative mutation to description
-                    description = description +  (f"{numbers[counter]} {self.bot.get_emoji(self.emoji.get_emoji("min_trophy"))} {mutation["delta_trophies"]} {mutation["name"]} \n")
+                    description = description +  f'{numbers[counter]} {self.bot.get_emoji(self.emoji.get_emoji("min_trophy"))} {mutation["delta_trophies"]} {mutation["name"]} \n'
                     counter += 1
                     
             #Create embed with lists of mutations
@@ -127,7 +125,7 @@ class LegendFeed(commands.GroupCog, name="legend"):
                 custom_embed = discord.Embed(
                     title=mutation["name"],
                     color= discord.Color.from_rgb(0, 200, 0),
-                    description= f"{self.bot.get_emoji(self.emoji.get_emoji(emoji="plus_trophy"))} {mutation["delta_trophies"]}"
+                    description= f'{self.bot.get_emoji(self.emoji.get_emoji(emoji="plus_trophy"))} {mutation["delta_trophies"]}'
                 ) 
                 custom_embed.set_footer(text=tag)
                 embeds.append(custom_embed)  
@@ -135,7 +133,7 @@ class LegendFeed(commands.GroupCog, name="legend"):
                 custom_embed = discord.Embed(
                     title=mutation["name"],
                     colour= discord.Colour.from_rgb(254, 0,0),
-                    description= f"{self.bot.get_emoji(self.emoji.get_emoji(emoji="min_trophy"))} {mutation["delta_trophies"]}"
+                    description= f'{self.bot.get_emoji(self.emoji.get_emoji(emoji="min_trophy"))} {mutation["delta_trophies"]}'
                 ) 
                 custom_embed.set_footer(text=tag)
                 embeds.append(custom_embed)

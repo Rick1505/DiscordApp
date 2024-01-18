@@ -5,7 +5,6 @@ from discord.ext import commands
 from discord import app_commands
 from API.player import Player
 from API.league import League
-from utils  import make_embed
 from design import emojis
 from bot import MyBot
 
@@ -41,7 +40,7 @@ class PlayerInfo(commands.GroupCog, name="player"):
         league = League()
         
         info = await player.get_all_player_info()
-        legend_info = await player.get_legend_history()
+        legend_info = await player.get_legend_history(db= self.db)
             
         legend_info_dates = await player.change_season_to_dates(legend_info)   
         description = []
@@ -59,14 +58,14 @@ class PlayerInfo(commands.GroupCog, name="player"):
 
         description = "".join(description)
             
-        embed_legend_seasons = make_embed(
+        embed_legend_seasons = discord.Embed(
            title = "Legend seasons",
-           author_icon = info["clan"]["badgeUrls"]["medium"],
-           author_text = info["name"],
-           thumbnail_url = await league.get_specific_league_image(info["league"]["id"]),
-           description=description,
-           footer_text = info["tag"],
+           description=description
         )
+        embed_legend_seasons.set_author(name=info["name"], icon_url=info["clan"]["badgeUrls"]["medium"])
+        embed_legend_seasons.set_thumbnail(url= await league.get_specific_league_image(info["league"]["id"]))
+        embed_legend_seasons.set_footer(text=info["tag"])
+        
         await interaction.followup.send(embed=embed_legend_seasons)
 
     @app_commands.command(name="legend_day", description="Shows information about the legend day of a player")

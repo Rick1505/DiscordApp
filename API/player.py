@@ -36,8 +36,7 @@ class Player():
         else:
             return False
                 
-    async def get_legend_history(self):
-        db = BotDatabase("database/legend_league.db")
+    async def get_legend_history(self, db):
         return db.get_user_information(user_tag=self.account_tag)
     
     async def change_season_to_dates(self, legend_history: List):
@@ -61,9 +60,7 @@ class Player():
         return player_info["trophies"]
     
     #Get the latest recorded trophies in the database of a player
-    async def get_db_trophies(self):
-        db = BotDatabase("database/legend_league.db")
-        db.get_player_trophies(account_tag= self.account_tag)   
+    async def get_db_trophies(self, db):
         return db.get_player_trophies(account_tag= self.account_tag)        
         
     async def get_name(self):

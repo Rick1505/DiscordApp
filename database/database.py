@@ -1,4 +1,5 @@
 import datetime 
+import os
 
 from urllib.parse import quote_plus
 from sqlalchemy import create_engine, Column, Integer, String, text, delete, and_, update
@@ -6,61 +7,13 @@ from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import sessionmaker
 from database.db_models.db_model import User, NationalityUser, GroupUser, TrackedUser, LegendStart, Base
 from datetime import date
+from settings import Config
 
-DATABASE_HOST = "database.consulhosting.nl"
-DATABASE_PORT = "3306"
-DATABASE_PASSWORD = "W=F^2eB.gExlcZF.3FAqQoh2"
-DATBASE_USER = "u5770_r3kyvfwAYx"
-DATABASE_PASSWORD_UPDATED = quote_plus(DATABASE_PASSWORD)
-class BotDatabase():
-    def __init__(self, url_database: str) -> None:
-        self.engine = create_engine(f"mysql+mysqlconnector://{DATBASE_USER}:{DATABASE_PASSWORD_UPDATED}@{DATABASE_HOST}:{DATABASE_PORT}/s30685_legend_league")
-        self.Session = sessionmaker(bind=self.engine)
-        self.session = self.Session()
-        self.Base = Base
-        self.initiate_db()
-        
-        
-    def initiate_db(self):
-        self.Base.metadata.create_all(self.engine)
 
-    def create_specific_table(self, table):
-        self.Base.metadata.create_all(self.engine, tables = [table.__table__])
-        
+class TrackedUserQueries:
+    def __init__(self) -> None:
+        pass
     
-    #LEGEND_TROPHIES TABLE       
-    def add_season_to_legend_db(self, data: list, season: str):       
-        #Add users to a list
-        data_to_add = [User(season=season, tag=item["tag"], name=item["name"], rank=item["rank"], trophies=item["trophies"]) for item in data]
-        
-        #Add all useres to the database
-        self.session.add_all(data_to_add)
-        self.session.commit()
-        
-    def get_user_information(self, user_tag: str):
-        return self.session.query(User).filter_by(tag=user_tag).all()
-
-
-    #LOCATIONS TABLE
-    def add_dutch_players(self, data : list, country: str):
-        #Add all data to list
-        data_to_add = [[item["tag"], item["name"], country] for item in data]    
-        
-        
-        # print(data_to_add)        
-        # Make an insert statement so I don't get duplicates using IGNORE 
-        insert_statement = text("""
-            INSERT OR IGNORE INTO players_nationality (tag, name, country)
-            values (:tag, :name, :country)
-        """)
-        
-        for row in data_to_add:
-            self.session.execute(insert_statement, {"tag":row[0], "name": row[1], "country":row[2]})
-        
-        self.session.commit()
-    
-    
-    #TRACKED_USERS TABLE          
     def add_mutation(self, account_tag, current_trophies, new_trophies):
         """Adds a mutation to the table mutations"""
         #Calculate the difference in trophies
@@ -128,8 +81,11 @@ class BotDatabase():
        
         return mutations       
                 
-        
-    #GROUPS TABLE    TODO ADD GUILD_ID
+class GroupQueries:
+    def __init__(self) -> None:
+        pass
+         #GROUPS TABLE
+         
     def get_all_unique_tags(self):
         data = self.session.query(GroupUser.tag).all()
         all_tags =  [record.tag for record in data]
@@ -150,12 +106,12 @@ class BotDatabase():
         player_info = await player.get_all_player_info()
         account_tag = player_info["tag"]
         #Check if player is already added to the group in the current guild
-        exists = self.session.query(GroupUser.id).filter_by(tag=account_tag, group=group, guild = guild_id).first() is not None
+        exists = self.session.query(GroupUser.id).filter_by(tag=account_tag, group=group, guild = str(guild_id)).first() is not None
                 
         if not exists:
             name = player_info["name"]
             #If player isn't in the group add it to group
-            self.session.add(GroupUser(group=group, tag=account_tag, guild = guild_id, name=name))
+            self.session.add(GroupUser(group=group, tag=account_tag, guild = str(guild_id), name=name))
             
             #Also check if player is tracked already
             is_tracked = self.check_if_player_is_tracked(account_tag)
@@ -184,7 +140,7 @@ class BotDatabase():
         Deletes the user from all groups in this specific guild.\n
         Returns a string that tells you the user has been deleted
         """
-        delete_statement = delete(GroupUser).where(and_(GroupUser.guild==guild_id, GroupUser.tag==player))
+        delete_statement = delete(GroupUser).where(and_(GroupUser.guild==str(guild_id), GroupUser.tag==player))
         
         self.session.execute(delete_statement)
         self.session.commit()
@@ -193,7 +149,7 @@ class BotDatabase():
 
     def get_current_group(self, account: str, guild_id: int):
         """Returns the group name of a specific group an account is in"""
-        response = self.session.query(GroupUser).filter_by(guild=guild_id, tag=account).scalar()
+        response = self.session.query(GroupUser).filter_by(guild=str(guild_id), tag=account).scalar()
         return response.group
     
     def change_player_group(self, account: str, new_group: str, guild_id: int) -> str:
@@ -201,20 +157,79 @@ class BotDatabase():
         Changes the group for a specific player in the guild the action has been performed\n
         Returns a string whether the user has been updated or not
         """
-        update_statement = update(GroupUser).where(and_(GroupUser.guild == guild_id, GroupUser.tag==account)).values(group=new_group)
+        update_statement = update(GroupUser).where(and_(GroupUser.guild == str(guild_id), GroupUser.tag==account)).values(group=new_group)
         
         self.session.execute(update_statement)
         self.session.commit()
         self.session.close()
         
-        if self.get_current_group(account=account, guild_id=guild_id) == new_group:
+        if self.get_current_group(account=account, guild_id=str(guild_id)) == new_group:
             return "User has been updated"
         else:
             return "There has ben an error"
     
     def get_player_from_group(self, guild_id, account_tag):
         """Returns a player object from a specific group in the current guild"""
-        return self.session.query(GroupUser).filter_by(guild=guild_id, tag=account_tag).scalar()
+        return self.session.query(GroupUser).filter_by(guild=str(guild_id), tag=account_tag).scalar()
+
+
+class BotDatabase():
+    def __init__(self, config: Config) -> None:
+        self.is_connected = False
+        self.config = config
+        self.engine = create_engine(config.db_connection_string)
+        self.connect()
+        self.tracked_user_queries = TrackedUser()
+        
+      
+    def connect(self) -> None:
+        self.engine = create_engine(self.config.db_connection_string)
+        self.Session = sessionmaker(bind=self.engine)
+        self.session = self.Session()
+        self.Base = Base
+        self.initiate_db()
+        
+    def initiate_db(self):
+        self.Base.metadata.create_all(self.engine)
+
+    def create_specific_table(self, table):
+        self.Base.metadata.create_all(self.engine, tables = [table.__table__])
+        
+    
+    #LEGEND_TROPHIES TABLE       
+    def add_season_to_legend_db(self, data: list, season: str):       
+        #Add users to a list
+        data_to_add = [User(season=season, tag=item["tag"], name=item["name"], rank=item["rank"], trophies=item["trophies"]) for item in data]
+        
+        #Add all useres to the database
+        self.session.add_all(data_to_add)
+        self.session.commit()
+        
+    def get_user_information(self, user_tag: str):
+        return self.session.query(User).filter_by(tag=user_tag).all()
+
+
+    #LOCATIONS TABLE
+    def add_dutch_players(self, data : list, country: str):
+        #Add all data to list
+        data_to_add = [[item["tag"], item["name"], country] for item in data]    
+        
+        
+        # print(data_to_add)        
+        # Make an insert statement so I don't get duplicates using IGNORE 
+        insert_statement = text("""
+            INSERT OR IGNORE INTO players_nationality (tag, name, country)
+            values (:tag, :name, :country)
+        """)
+        
+        for row in data_to_add:
+            self.session.execute(insert_statement, {"tag":row[0], "name": row[1], "country":row[2]})
+        
+        self.session.commit()
+    
+          
+        
+   
         
         
     #LEGEND_START TABLE
@@ -233,6 +248,13 @@ class BotDatabase():
         else:
             return query
         
+    def clear_legend_start(self):
+        query = delete(LegendStart).where(LegendStart.date == date.today())
+        self.session.execute(query)
+        self.session.commit()
+        self.session.close()
+        
+        return query
         
         
         
