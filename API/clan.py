@@ -9,56 +9,35 @@ BASE_URL_CLAN = "https://api.clashofclans.com/v1/clans/"
 
 class Clan():
     
-    def __init__(self, clan_tag) -> None:
-        self.clan_tag = clan_tag 
-        self.api_session = aiohttp.ClientSession()
-  
+    def __init__(self, fetch) -> None:
+        self.fetch = fetch
     
-    def get_clan_info(self):
+    async def get_clan_info(self):
+        api_session = aiohttp.ClientSession()
         url = f'{BASE_URL_CLAN}{self.clan_tag}'
         encoded_url = parse.quote(url, safe=":/")
-        try: 
-            response = requests.get(url=encoded_url, headers=self.headers)
-            response.raise_for_status()
-        except requests.exceptions.HTTPError as errh:
-            return ("Http Error:",errh)
-        except requests.exceptions.ConnectionError as errc:
-            return ("Error Connecting:",errc)
-        except requests.exceptions.Timeout as errt:
-            return ("Timeout Error:",errt)
-        except requests.exceptions.RequestException as err:
-            return ("OOps: Something Else",err)
-        else:
-            clan_info = response.json()
-            return clan_info
-    
-    def get_all_players(self):
+        
+        async with api_session as session:
+            return await self.fetch(session, encoded_url, timeout=60)
+           
+           
+    async def get_all_players(self):
+        api_session = aiohttp.ClientSession()
+
         url = f"{BASE_URL_CLAN}{self.clan_tag}/members"
         encoded_url = parse.quote(url, safe=":/")
         
-        try: 
-            response = requests.get(url=encoded_url, headers=self.headers)
-            response.raise_for_status()
-        except requests.exceptions.HTTPError as errh:
-            return ("Http Error:",errh)
-        except requests.exceptions.ConnectionError as errc:
-            return ("Error Connecting:",errc)
-        except requests.exceptions.Timeout as errt:
-            return ("Timeout Error:",errt)
-        except requests.exceptions.RequestException as err:
-            return ("OOps: Something Else",err)
-        else:
-            all_members = response.json()
-            return all_members
+        async with api_session as session:
+            return await self.fetch(session, encoded_url, timeout=60)
     
-    def get_current_war(self):
+    
+    async def get_current_war(self):
+        api_session = aiohttp.ClientSession()
+
         url = f"{BASE_URL_CLAN}{self.clan_tag}/currentwar"
         encoded_url = parse.quote(url, safe=":/")
-        try:
-            response = requests.get(url=encoded_url, headers=self.headers)
-            response.raise_for_status()
-        except requests.exceptions.RequestException as err:
-            return ("Oops: Something Else", err)
-        else:
-            return response.json()
-    
+        
+        async with api_session as session:
+            return await self.fetch(session, encoded_url, timeout=60)
+        
+

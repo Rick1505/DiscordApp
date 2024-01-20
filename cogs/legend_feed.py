@@ -6,7 +6,7 @@ from discord        import app_commands
 from API.player     import Player
 from typing         import List
 from design.emojis  import Emoji
-from bot            import MyBot
+from custom_bot     import MyBot
 from time           import time
 
 class LegendFeed(commands.GroupCog, name="legend"):

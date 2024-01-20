@@ -4,7 +4,7 @@ import datetime
 
 from    discord         import app_commands
 from    discord.ext     import commands
-from    bot             import MyBot
+from    custom_bot      import MyBot
 from    typing          import List
 from    API.player      import Player
 

@@ -42,7 +42,7 @@ class GroupUser(Base):
     group: Mapped[str] = mapped_column(String(30))
     
     
-class LegendStart(Base):
+class LegendDay(Base):
     __tablename__ = "legend_start"
     
     id:Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

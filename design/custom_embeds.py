@@ -4,7 +4,7 @@ import datetime
 from discord.ext import commands
 from database.database import BotDatabase
 from design.emojis import Emoji
-from bot import MyBot
+from custom_bot import MyBot
 
 class CustomEmbeds(commands.Cog):
     def __init__(self, bot: MyBot) -> None:

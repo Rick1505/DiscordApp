@@ -6,6 +6,7 @@ from discord.ext import commands
 from design.emojis  import Emoji
 from database.database import BotDatabase
 from settings import Config
+from API import coc_api_tasks
 
 class MyBot(commands.Bot):
     def __init__(self, config: Config):
@@ -19,8 +20,9 @@ class MyBot(commands.Bot):
         self.emoji = Emoji()
         #TODO SETUP_LOGGER
         self.start_time = datetime.datetime.now()
-        #TODO SETUP_DATABASE
-        self.dbconn = BotDatabase(config.db_connection_string)
+        self.dbconn = BotDatabase(config)
+        self.coc_api = coc_api_tasks.APICalls(config)
+
         
     async def on_ready(self):
         print(f'Logged in as {self.user} (ID: {self.user.id})')

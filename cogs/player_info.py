@@ -1,21 +1,37 @@
 import discord
-import asyncio
 
-from discord.ext import commands
-from discord import app_commands
-from API.player import Player
-from API.league import League
-from design import emojis
-from bot import MyBot
+from discord.ext    import commands
+from discord        import app_commands
+from API.player     import Player
+from API.league     import League
+from design         import emojis
+from custom_bot     import MyBot
+from typing         import List
 
 class PlayerInfo(commands.GroupCog, name="player"):
     def __init__(self, bot: MyBot):
         self.bot = bot
         self.db = bot.dbconn
         self.emoji = emojis.Emoji() 
+    
+    # #AUTO POPULATE FOR A PLAYER
+    async def player_autocomplete(self,
+        interaction: discord.Interaction,
+        current: str,
+    )   -> List[app_commands.Choice[str]]:
         
+        all_players = self.db.get_all_groups(interaction.guild.id)
+        player_accounts = [[record.name, record.tag] for record in all_players]
+        player_accounts_unique = [list(player) for player in set(tuple(player) for player in player_accounts)]
+            
+        return [
+            app_commands.Choice(name=f"{player[0]} - {player[1]}", value=player[1])
+            for player in player_accounts_unique
+        ]
+                
     #SHOW INFORMATION ABOUT THE HERO EQUIPMENT OF A PLAYER
     @app_commands.command(name = "equipment", description = "This will show you the hero equipment of a player")
+    @app_commands.autocomplete(account_tag=player_autocomplete )
     @app_commands.rename(account_tag = "account")
     @app_commands.describe(account_tag = "The account tag you want to check formatedd in '#ACCOUNT' ")
     async def best_trophies(self, interaction: discord.Interaction, account_tag: str ):      
@@ -32,6 +48,7 @@ class PlayerInfo(commands.GroupCog, name="player"):
         
     # #DISPLAYS ALL LEGEND SEASONS FROM 2021 TO 2023     
     @app_commands.command(name="legend_history", description="This will show you all the ranks you have achieved in the different legend seasons")
+    @app_commands.autocomplete(account_tag=player_autocomplete)
     @app_commands.rename(account_tag = "account")
     @app_commands.describe(account_tag = "The account tag you want to check formatedd in '#ACCOUNT' ")
     async def display_legend_seasons(self, interaction: discord.Interaction, account_tag: str): 
@@ -69,6 +86,7 @@ class PlayerInfo(commands.GroupCog, name="player"):
         await interaction.followup.send(embed=embed_legend_seasons)
 
     @app_commands.command(name="legend_day", description="Shows information about the legend day of a player")
+    @app_commands.autocomplete(account_tag=player_autocomplete)
     @app_commands.rename(account_tag="account")
     @app_commands.describe(account_tag = "The account tag you want to check formatedd in '#ACCOUNT' ")
     async def legend_day(self, interaction: discord.Interaction, account_tag: str):

@@ -2,17 +2,17 @@ import datetime
 import os
 
 from urllib.parse import quote_plus
-from sqlalchemy import create_engine, Column, Integer, String, text, delete, and_, update
+from sqlalchemy import create_engine, Column, Integer, String, text, delete, and_, update 
 from sqlalchemy.exc import NoResultFound
-from sqlalchemy.orm import sessionmaker
-from database.db_models.db_model import User, NationalityUser, GroupUser, TrackedUser, LegendStart, Base
+from sqlalchemy.orm import sessionmaker, Session
+from database.db_models.db_model import User, NationalityUser, GroupUser, TrackedUser, LegendDay, Base
 from datetime import date
 from settings import Config
 
 
 class TrackedUserQueries:
-    def __init__(self) -> None:
-        pass
+    def __init__(self, session: Session) -> None:
+        self.session = Session
     
     def add_mutation(self, account_tag, current_trophies, new_trophies):
         """Adds a mutation to the table mutations"""
@@ -82,9 +82,8 @@ class TrackedUserQueries:
         return mutations       
                 
 class GroupQueries:
-    def __init__(self) -> None:
-        pass
-         #GROUPS TABLE
+    def __init__(self, session: Session) -> None:
+        self.session = session
          
     def get_all_unique_tags(self):
         data = self.session.query(GroupUser.tag).all()
@@ -172,31 +171,31 @@ class GroupQueries:
         """Returns a player object from a specific group in the current guild"""
         return self.session.query(GroupUser).filter_by(guild=str(guild_id), tag=account_tag).scalar()
 
-
-class BotDatabase():
-    def __init__(self, config: Config) -> None:
-        self.is_connected = False
-        self.config = config
-        self.engine = create_engine(config.db_connection_string)
-        self.connect()
-        self.tracked_user_queries = TrackedUser()
+class LegendDay:
+       
+    def __init__(self, session: Session) -> None:
+        self.session = session
+       
+    def add_legend_start(self, players: list[tuple]):
+        #players ia list of tuples with format: (account_tag, trophies)
         
-      
-    def connect(self) -> None:
-        self.engine = create_engine(self.config.db_connection_string)
-        self.Session = sessionmaker(bind=self.engine)
-        self.session = self.Session()
-        self.Base = Base
-        self.initiate_db()
+        mutations = [LegendDay(tag= tuple[0], trophies = tuple[1], date = datetime.date.today()) for tuple in players]
+        self.session.add_all(mutations)
+        self.session.commit()
         
-    def initiate_db(self):
-        self.Base.metadata.create_all(self.engine)
-
-    def create_specific_table(self, table):
-        self.Base.metadata.create_all(self.engine, tables = [table.__table__])
+    def get_legend_start(self, account_tag: str, date: date):
+        try:
+            query = self.session.query(LegendDay.trophies).filter_by(tag=account_tag, date=date).scalar()
+        except NoResultFound as e:
+            return e
+        else:
+            return query
         
+class LegendSeasons:
     
-    #LEGEND_TROPHIES TABLE       
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
     def add_season_to_legend_db(self, data: list, season: str):       
         #Add users to a list
         data_to_add = [User(season=season, tag=item["tag"], name=item["name"], rank=item["rank"], trophies=item["trophies"]) for item in data]
@@ -208,55 +207,52 @@ class BotDatabase():
     def get_user_information(self, user_tag: str):
         return self.session.query(User).filter_by(tag=user_tag).all()
 
+class BotDatabase:
+    def __init__(self, config: Config) -> None:
+        self.is_connected = False
+        self.config = config
+        self.connection = self.connect()
+        self.session: Session = self.session_maker()
+        
+        self.tracked_user_queries = TrackedUserQueries(self.session)
+        self.group_queries = GroupQueries(self.session)
+        self.legend_day_queries = LegendDay(self.session)
+        self.legend_seasons_queries = LegendSeasons(self.session)
+        
+      
+    def connect(self) -> None:
+        self.engine = create_engine(self.config.db_connection_string)
+        self.session_maker = sessionmaker(bind=self.engine)
+        self.Base = Base
+        self.initiate_db()
+        self.is_connected = True
+        
+    def close_connection(self) -> None:
+        self.connection.close()
+        
+    def initiate_db(self):
+        self.Base.metadata.create_all(self.engine)
 
-    #LOCATIONS TABLE
-    def add_dutch_players(self, data : list, country: str):
-        #Add all data to list
-        data_to_add = [[item["tag"], item["name"], country] for item in data]    
+   
+    # #LOCATIONS TABLE
+    # def add_dutch_players(self, data : list, country: str):
+    #     #Add all data to list
+    #     data_to_add = [[item["tag"], item["name"], country] for item in data]    
         
         
-        # print(data_to_add)        
-        # Make an insert statement so I don't get duplicates using IGNORE 
-        insert_statement = text("""
-            INSERT OR IGNORE INTO players_nationality (tag, name, country)
-            values (:tag, :name, :country)
-        """)
+    #     # print(data_to_add)        
+    #     # Make an insert statement so I don't get duplicates using IGNORE 
+    #     insert_statement = text("""
+    #         INSERT OR IGNORE INTO players_nationality (tag, name, country)
+    #         values (:tag, :name, :country)
+    #     """)
         
-        for row in data_to_add:
-            self.session.execute(insert_statement, {"tag":row[0], "name": row[1], "country":row[2]})
+    #     for row in data_to_add:
+    #         self.session.execute(insert_statement, {"tag":row[0], "name": row[1], "country":row[2]})
         
-        self.session.commit()
+    #     self.session.commit()
     
           
-        
-   
-        
-        
-    #LEGEND_START TABLE
-    def add_legend_start(self, players: list[tuple]):
-        #players ia list of tuples with format: (account_tag, trophies)
-        
-        mutations = [LegendStart(tag= tuple[0], trophies = tuple[1], date = datetime.date.today()) for tuple in players]
-        self.session.add_all(mutations)
-        self.session.commit()
-        
-    def get_legend_start(self, account_tag: str, date: date):
-        try:
-            query = self.session.query(LegendStart.trophies).filter_by(tag=account_tag, date=date).scalar()
-        except NoResultFound as e:
-            return e
-        else:
-            return query
-        
-    def clear_legend_start(self):
-        query = delete(LegendStart).where(LegendStart.date == date.today())
-        self.session.execute(query)
-        self.session.commit()
-        self.session.close()
-        
-        return query
-        
-        
         
     
             

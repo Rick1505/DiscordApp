@@ -1,4 +1,3 @@
-import requests
 import os
 from urllib import parse
 from database.database import BotDatabase
@@ -10,28 +9,21 @@ BASE_URL_LEAGUE = "https://api.clashofclans.com/v1/locations/"
 
 class Location():
 
-    def __init__(self) -> None:
+    def __init__(self, fetch) -> None:
+        self.fetch = fetch
         self.api_session = aiohttp.ClientSession()
 
         self.netherlands_id = 32000166
         self.belgium_id = 32000029
 
-    def get_dutch_players(self):
-        url = f"{BASE_URL_LEAGUE}{self.netherlands_id}/rankings/players"
+
+    async def get_leaderboard(self, location_id):       
+        api_session = aiohttp.ClientSession()
+
+        url = f"{BASE_URL_LEAGUE}{location_id}/rankings/players"
         
-        response = requests.get(url=url, headers=self.headers)
-        response.raise_for_status()
-        
-        data = response.json()
-        return data["items"]
-    
-    
-    def get_belgian_players(self):
-        url = f"{BASE_URL_LEAGUE}{self.belgium_id}/rankings/players"
-        
-        response = requests.get(url=url, headers=self.headers)
-        response.raise_for_status()
-        
-        data = response.json()
-        return data["items"]
+        async with api_session as session:
+            data = await self.fetch(session, url, timeout=30)
+            return data["items"]
+
     
