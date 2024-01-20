@@ -16,32 +16,32 @@ class Player():
         self.fetch = fetch
     
     #Function to get all the information from the player
-    async def get_all_player_info(self) -> dict:
+    async def get_all_player_info(self, account_tag) -> dict:
         api_session = aiohttp.ClientSession()
 
-        url = f'{BASE_URL_PLAYER}{"#YPLG2JGV"}'
+        url = f'{BASE_URL_PLAYER}{account_tag}'
         encoded_url = parse.quote(url, safe=":/")
         
         async with api_session as session:
             return await self.fetch(session, encoded_url, timeout=30)
          
-    async def is_in_legend(self) -> bool:
-        data = await self.get_all_player_info()
+    async def is_in_legend(self, account_tag) -> bool:
+        data = await self.get_all_player_info(account_tag=account_tag)
         return data["league"]["id"] == 29000022
     
-    async def get_trophies(self) -> int:
-        player_info = await self.get_all_player_info()
+    async def get_trophies(self, account_tag) -> int:
+        player_info = await self.get_all_player_info(account_tag=account_tag)
         return player_info["trophies"]
             
-    async def get_name(self) -> str:
-        data = await self.get_all_player_info()
+    async def get_name(self, account_tag) -> str:
+        data = await self.get_all_player_info(account_tag=account_tag)
         return data["name"]
    
     
     #MAYBE SWITCH TO DB
     #Get the latest recorded trophies in the database of a player
-    async def get_db_trophies(self, db):
-        return db.get_player_trophies(account_tag= self.account_tag)     
+    async def get_db_trophies(self, db, account_tag):
+        return db.get_player_trophies(account_tag= account_tag)     
     
     #CAN ACTUALLY BE REMOVED IF NOT CONTINUING WITH LEGEND HISTORY
     async def change_season_to_dates(self, legend_history: List):
@@ -60,8 +60,8 @@ class Player():
             legend_history[i].season = seasons_post[i]
         return legend_history     
     
-    async def get_legend_history(self, db):
-        return db.get_user_information(user_tag=self.account_tag)
+    async def get_legend_history(self, db, account_tag):
+        return db.get_user_information(user_tag= account_tag)
         
         
         

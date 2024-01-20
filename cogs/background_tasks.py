@@ -10,6 +10,7 @@ class BackgroundTasks(commands.Cog):
         self.bot: MyBot = bot
         self.db = bot.dbconn
         self.update_legend_start.start()
+        
     
     @tasks.loop(time=datetime.time(4,59,0))        
     async def update_legend_start(self):
@@ -17,8 +18,7 @@ class BackgroundTasks(commands.Cog):
 
         all_tags = self.db.group_queries.get_all_unique_tags()
         for tag in all_tags:
-            player = Player(tag)
-            trophies = await player.get_trophies()
+            trophies = await self.bot.coc_api.player_queries.get_trophies(account_tag=tag)
             tuples.append((tag, trophies))
         
         self.db.legend_day_queries.add_legend_start(tuples)

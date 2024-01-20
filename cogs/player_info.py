@@ -13,6 +13,9 @@ class PlayerInfo(commands.GroupCog, name="player"):
         self.bot = bot
         self.db = bot.dbconn
         self.emoji = emojis.Emoji() 
+        
+        self.league_q = self.bot.coc_api.league_queries
+        self.player_q = self.bot.coc_api.player_queries
     
     # #AUTO POPULATE FOR A PLAYER
     async def player_autocomplete(self,
@@ -36,10 +39,9 @@ class PlayerInfo(commands.GroupCog, name="player"):
     @app_commands.describe(account_tag = "The account tag you want to check formatedd in '#ACCOUNT' ")
     async def best_trophies(self, interaction: discord.Interaction, account_tag: str ):      
        
-        player = Player(account_tag=account_tag)
-        info = await player.get_all_player_info()
-        hero_equip = info["heroEquipment"]
-        embed = discord.Embed(title= info["name"], color=discord.Colour.from_rgb(0, 150, 255))
+        player_info = await self.player_q.get_all_player_info(account_tag=account_tag)
+        hero_equip = player_info["heroEquipment"]
+        embed = discord.Embed(title= player_info["name"], color=discord.Colour.from_rgb(0, 150, 255))
         
         for equip in hero_equip:
             embed.add_field(name=equip["name"], value=equip["level"], inline=True)
@@ -53,13 +55,11 @@ class PlayerInfo(commands.GroupCog, name="player"):
     @app_commands.describe(account_tag = "The account tag you want to check formatedd in '#ACCOUNT' ")
     async def display_legend_seasons(self, interaction: discord.Interaction, account_tag: str): 
         await interaction.response.defer()
-        player = Player(account_tag=account_tag)
-        league = League()
-        
-        info = await player.get_all_player_info()
-        legend_info = await player.get_legend_history(db= self.db)
+               
+        info = await self.player_q.get_all_player_info(account_tag=account_tag)
+        legend_info = await self.player_q.get_legend_history(db= self.db, account_tag=account_tag)
             
-        legend_info_dates = await player.change_season_to_dates(legend_info)   
+        legend_info_dates = await self.player_q.change_season_to_dates(legend_info)   
         description = []
         
         for year in range(2023, 2020, -1):
@@ -80,7 +80,7 @@ class PlayerInfo(commands.GroupCog, name="player"):
            description=description
         )
         embed_legend_seasons.set_author(name=info["name"], icon_url=info["clan"]["badgeUrls"]["medium"])
-        embed_legend_seasons.set_thumbnail(url= await league.get_specific_league_image(info["league"]["id"]))
+        embed_legend_seasons.set_thumbnail(url= await self.league_q.get_specific_league_image(info["league"]["id"]))
         embed_legend_seasons.set_footer(text=info["tag"])
         
         await interaction.followup.send(embed=embed_legend_seasons)
@@ -91,8 +91,8 @@ class PlayerInfo(commands.GroupCog, name="player"):
     @app_commands.describe(account_tag = "The account tag you want to check formatedd in '#ACCOUNT' ")
     async def legend_day(self, interaction: discord.Interaction, account_tag: str):
         await interaction.response.defer()
-        player = Player(account_tag=account_tag)
-        player_info = await player.get_all_player_info()
+
+        player_info = await self.player_q.get_all_player_info(account_tag=account_tag)
         group = self.db.get_player_from_group(guild_id=interaction.guild_id, account_tag=account_tag).group
 
         embed_cog = self.bot.get_cog("CustomEmbeds")

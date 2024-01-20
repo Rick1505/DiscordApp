@@ -15,6 +15,8 @@ class LegendFeed(commands.GroupCog, name="legend"):
         self.bot = bot
         self.db = bot.dbconn
         self.emoji = Emoji()
+        
+        self.player_q = self.bot.coc_api.player_queries
          
 
     async def create_embed_paging(self, embeds: List, channel:discord.TextChannel):
@@ -54,14 +56,12 @@ class LegendFeed(commands.GroupCog, name="legend"):
         
         #Check every individual tag for changes
         for tag in tags_to_check:           
-            info = {}
-            
-            player = Player(account_tag=tag)
-            player_info = await player.get_all_player_info()
+            info = {}           
+            player_info = await self.player_q.get_all_player_info(tag)
             
             #Calculating trophies
             new_trophies = player_info["trophies"]
-            current_trophies = await player.get_db_trophies(db= self.db)
+            current_trophies = await self.player_q.get_db_trophies(db= self.db, account_tag=tag)
             #TODO CHANGE TO DELTA
             delta_trophies = new_trophies - current_trophies
                             
