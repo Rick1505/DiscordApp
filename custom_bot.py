@@ -33,4 +33,7 @@ class MyBot(commands.Bot):
                 await self.load_extension(extension)
             except Exception as e:
                 traceback.print_exc()
+        self.tree.copy_global_to(guild=self.dev_guild)
+        await self.tree.sync(guild=self.dev_guild)
         await self.tree.sync()
+        

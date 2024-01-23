@@ -3,7 +3,6 @@ import datetime
 import asyncio
 
 from urllib import parse
-from database.database import BotDatabase
 from typing import List
 
 

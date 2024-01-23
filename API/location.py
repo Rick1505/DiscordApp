@@ -1,6 +1,5 @@
 import os
 from urllib import parse
-from database.database import BotDatabase
 import aiohttp
 
 

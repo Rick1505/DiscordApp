@@ -1,43 +1,313 @@
-import datetime 
-import os
+import discord 
+import datetime
 
+from typing import Optional
 from urllib.parse import quote_plus
-from sqlalchemy import create_engine, Column, Integer, String, text, delete, and_, update 
+from sqlalchemy import create_engine, delete, and_, func, update, select, cast, Date
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import sessionmaker, Session
-from database.db_models.db_model import User, NationalityUser, GroupUser, TrackedUser, LegendDay, Base
-from datetime import date
+
+from database.db_models.db_model import Player, DiscordUser, Group, Mutation, LegendDay, Base
 from settings import Config
 
-
-class TrackedUserQueries:
-    def __init__(self, session: Session) -> None:
-        self.session = Session
+class PlayerQueries:
     
-    def add_mutation(self, account_tag, current_trophies, new_trophies):
+    def __init__(self, session: Session) -> None:
+        self.session = session       
+    
+    def get_player(self, player_tag:str) -> Optional[Player]:
+        player_tag = player_tag.upper()
+        return self.session.scalars(select(Player).filter_by(tag=player_tag)).first()
+    
+    def try_add_player(self, account_information: dict, alias: str = None, discord_user: discord.User = None, group: str = None) -> bool:
+        """
+        returns true if succeeded, else false
+        """
+        count_query = select(func.count(Player.tag))
+        pre_count = self.session.scalar(count_query)
+        
+        all_account_info = account_information
+        user_to_add = None
+        
+        tag:str = account_information["tag"]
+
+        if discord_user:
+            user_to_add = self.session.scalars(select(DiscordUser).filter_by(id = str(discord_user.id))).first() 
+            if not user_to_add:
+                return False
+               
+        mutation_to_add = Mutation(
+            current_trophies = int(all_account_info["trophies"]),
+            delta_trophies = int(all_account_info["trophies"]),
+            datetime = datetime.datetime.now(datetime.UTC)
+        )
+                  
+        player = Player(
+            tag = tag.upper(),
+            ingame_name = all_account_info["name"], 
+            alias = alias,
+            discord_user = user_to_add,
+            mutations = [mutation_to_add]
+        )
+        
+        self.session.add(player)
+        self.session.commit()
+        post_count = self.session.scalar(count_query)
+        return post_count > pre_count
+                                   
+    #PROBABLY BELONGS TO LEGEND DAYS
+    #TODO
+    #return fales if no player exists
+    def get_all_legend_days(self, player_tag: str):
+        player = self.get_player(player_tag)
+        
+        if player:
+            return player.legend_days
+        else:
+            return False         
+class DiscordUserQueries:
+    
+    def __init__(self, session: Session) -> None:
+        self.session = session
+               
+    def get_user(self, discord_user: discord.User):
+        return self.session.scalars(select(DiscordUser).filter_by(id = str(discord_user.id))).first()
+                  
+    def try_add_user(self, discord_user: discord.User, alias= None) -> bool:
+        count_query = select(func.count(LegendDay.id))
+        pre_count = self.session.scalar(count_query)
+        
+        discord_id = str(discord_user.id)
+        discord_name = discord_user.name
+
+        if not self.get_user(discord_user):
+            user = DiscordUser(id = discord_id, nickname = discord_name, alias= alias)      
+            self.session.add(user)
+            self.session.commit()
+            post_count = self.session.scalar(count_query)
+        
+            return post_count > pre_count
+        else:
+            False   
+    
+    def link_clash_account(self, discord_user: discord.User, player_tag:str) -> bool:
+        player = self.session.scalars(select(Player).filter_by(tag=player_tag)).first()
+        user = self.get_user(discord_user)
+        
+        if player:  
+            # create user if not exists
+            if not user:
+                if self.try_add_user(discord_user):
+                    user = self.get_user(discord_user)
+                else:
+                    return False
+                
+            user.accounts.append(player)
+            return True
+        else:
+            return False               
+                  
+    def change_alias(self, discord_user: discord.User, alias: str):
+        user_to_change = self.get_user(discord_user= discord_user)
+        
+        if user_to_change:
+            user_to_change.alias = alias
+            return True
+        else:
+            return False 
+class GroupQueries:
+    
+    def __init__(self, session: Session, player_queries: PlayerQueries) -> None:
+        self.session = session
+        self.player_queries = player_queries
+   
+    def get_group(self, guild_id: str, group_name: str) -> Optional[Group]:
+        stmt = select(Group).filter(and_(Group.guild_id == guild_id, Group.group_name == group_name))
+        return self.session.scalars(stmt).first()
+    
+    def get_players(self, guild_id, group_name) -> list[Player]:
+        group_to_query = self.get_group(guild_id, group_name)
+        
+        if group_to_query:
+            return group_to_query.players
+        else:
+            return "No group found with these id's"
+        
+    def try_add_group(self, guild_id: str, group_name) -> bool:
+        group = self.get_group(guild_id, group_name)
+        
+        if not group:
+            count_query = select(func.count(Group.id))
+            pre_count = self.session.scalar(count_query)
+            
+            new_group = Group(
+                guild_id = guild_id,
+                group_name = group_name
+            )
+            self.session.add(new_group)
+            self.session.commit()
+            
+            post_count = self.session.scalar(count_query)
+            return post_count > pre_count
+        else:
+            return False
+    
+    def try_remove_group(self, guild_id, group_name) -> bool:
+        group = self.get_group(guild_id, group_name)
+        
+        if group:
+            count_query = select(func.count(Group.id))
+            pre_count = self.session.scalar(count_query)
+    
+            self.session.delete(group)
+            self.session.commit()
+            
+            post_count = self.session.scalar(count_query)
+            
+            return post_count < pre_count
+        else:
+            return False
+
+    def try_add_player(self, guild_id, group_name, player_tag) -> bool:
+        
+        group_to_add = self.get_group(guild_id, group_name)
+        player_to_add = self.player_queries.get_player(player_tag)
+        
+        if group_to_add and player_to_add:
+            group_to_add.players.append(player_to_add)
+            player_to_add.groups.append(group_to_add)
+            self.session.commit()
+            return True
+        else:
+            return False
+        
+    def change_player(self, guild_id, old_group, new_group, player_tag):
+        group_to_remove = self.get_group(guild_id, old_group)
+        group_to_add = self.get_group(guild_id, new_group)
+        player_to_change = self.player_queries.get_player(player_tag)
+        
+        if group_to_remove and player_to_change:
+            group_to_remove.players.remove(player_to_change)
+            
+            if group_to_add:
+                group_to_add.players.append(player_to_change)
+                player_to_change.groups = [group_to_add]
+                
+                self.session.commit()
+                return True
+            #if group doesn't exist make it
+            else:
+                group_add = self.try_add_group(guild_id, new_group)
+                #if group is added:
+                if group_add:
+                    #retrieve new group
+                    group_to_add = self.get_group(guild_id, new_group)
+                    
+                    #add group to new _players
+                    group_to_add.players.append(player_to_change)
+                    player_to_change.groups = [group_to_add]
+                    self.session.commit()
+                    return True
+                else:
+                    return False
+        else:
+            return False
+
+    def remove_player(self, guild_id, group_name, player_tag):
+        group = self.get_group(guild_id, group_name)
+        player_to_remove = self.player_queries.get_player(player_tag)
+        
+        if group and player_to_remove:
+            group.players.remove(player_to_remove)
+            player_to_remove.groups.remove(group)
+            
+            self.session.commit()
+            return True
+        else:
+            return False
+
+    #TODO
+    def get_all_unique_tags(self):
+        all_players = self.session.execute(select(Group.players)) 
+        
+        # all_tags =  [record.tag for record in data]
+        # return set(all_tags)
+    
+    # async def add_player_to_group(self, group: str, player, guild_id: int) -> str:
+        # """This function adds a player to a group in the table 'Groups'
+        # It returns a string whether an user is added or not
+        # """
+        # player_info = await player.get_all_player_info()
+        # player_tag = player_info["tag"]
+        # #Check if player is already added to the group in the current guild
+        # exists = self.session.query(GroupUser.id).filter_by(tag=player_tag, group=group, guild = str(guild_id)).first() is not None
+                
+        # if not exists:
+        #     name = player_info["name"]
+        #     #If player isn't in the group add it to group
+        #     self.session.add(GroupUser(group=group, tag=player_tag, guild = str(guild_id), name=name))
+            
+        #     #Also check if player is tracked already
+        #     is_tracked = self.check_if_player_is_tracked(player_tag)
+        #     self.session.commit()
+            
+        #     if not is_tracked:
+        #         #If not tracked get player trophies
+                
+        #         current_trophies = player_info["trophies"]
+        #         #Add player to TRACKED_USERS Table
+        #         self.add_mutation(player_tag=player_tag, current_trophies=0, new_trophies=current_trophies)
+        #         self.session.commit()
+        #         self.session.close()
+        #         return "User is starting to get tracked and has been added to the group"
+        #     else:
+        #         self.session.close()
+        #         #TODO return an a string with this answer so discord can send a message user is already being tracked
+        #         return "User is added to the group"                
+        # else:
+        #     #TODO return an a string with this answer so discord can send a message
+        #     #Return error player is in the group
+        #     return "User is already in the group"
+class MutationQueries:
+    
+    def __init__(self, session: Session, player_queries: PlayerQueries) -> None:
+        self.session = session
+        self.player_queries = player_queries
+        
+    def add(self, player_tag, current_trophies, new_trophies):
         """Adds a mutation to the table mutations"""
         #Calculate the difference in trophies
         delta_trophies = new_trophies - current_trophies
         
         #Add a new mutation to the database
-        new_mutation = TrackedUser(tag=account_tag, current_trophies= new_trophies, delta_trophies = delta_trophies, date=datetime.datetime.now(datetime.UTC))
-        self.session.add(new_mutation)
-        self.session.commit()  
-        
-    def get_player_trophies(self, account_tag: str):
-        """Gets the latest player trophies in the database"""
-        data = self.session.query(TrackedUser.current_trophies).filter_by(tag=account_tag).order_by(TrackedUser.id.desc()).first()
-        return data.current_trophies
-    
-    def check_if_player_is_tracked(self, account_tag: str) -> bool:
-        """
-        Checks if a plyer is tracked in the mutations\n
-        Returns False if a player is not tracked
-        """
-        #Returns False if not tracked, returns True if tracked
-        return self.session.query(TrackedUser.id).filter_by(tag=account_tag).first() is not None
+        player_to_add = self.player_queries.get_player(player_tag)
+        new_mutation = Mutation(
+            current_trophies= new_trophies, 
+            delta_trophies = delta_trophies, 
+            datetime = datetime.datetime.now(datetime.UTC)
+        )
 
-    def get_all_mutations_per_day(self, account_tag: str) -> dict:
+        if player_to_add:
+            player_to_add.mutations.append(new_mutation) 
+            self.session.add(new_mutation)
+            self.session.commit() 
+        else:
+            return False
+    #TODO 
+    def remove_all_from_player(self):
+        pass
+    #TODO
+    def remove_all(self):
+        pass
+    
+    def get_player_trophies(self, player_tag):
+        """Gets the latest player trophies in the database"""
+        stmt = select(Mutation.current_trophies).filter_by(tag=player_tag).order_by(Mutation.id.desc())
+        data = self.session.execute(stmt).first()
+        return data.current_trophies
+    #TODO TEST
+    def get_today_hits_from_player(self, player_tag:str) -> dict:  
+        
         """
         This function returns a dictionary with two attributes.
         Offense: all positive mutations of the legend day
@@ -62,8 +332,8 @@ class TrackedUserQueries:
             begin_time = datetime.datetime(yesterday.year,yesterday.month, yesterday.day,5,0,0,0, datetime.UTC) 
             end_time = datetime.datetime(now.year,now.month, now.day,5,0,0,0, datetime.UTC)
             
-        data = self.session.query(TrackedUser.delta_trophies).filter(TrackedUser.date > begin_time, TrackedUser.date < end_time, TrackedUser.tag == account_tag).all()
-        data = [record.delta_trophies for record in data]        
+        data = self.session.execute(select(Mutation.delta_trophies).filter(and_(Mutation.datetime > begin_time, Mutation.datetime < end_time, Mutation.player_id == player_tag))).all()
+        data = [row.delta_trophies for row in data]        
         
         mutations = {
             "offense": [],
@@ -79,145 +349,44 @@ class TrackedUserQueries:
             else:
                 mutations["error"].append(mutation)
        
-        return mutations       
-                
-class GroupQueries:
+        return mutations            
+class LegendDaysQueries:
+    
     def __init__(self, session: Session) -> None:
         self.session = session
-         
-    def get_all_unique_tags(self):
-        data = self.session.query(GroupUser.tag).all()
-        all_tags =  [record.tag for record in data]
-        return set(all_tags)
-    
-    def get_all_from_group(self, group_id: int, guild_id: int):
-        """Gets all the objects from a specific group"""
-        return self.session.query(GroupUser).filter_by(group=group_id, guild=guild_id).all()
-    
-    def get_all_groups(self, guild_id: int):
-        """Returns all the objects in every group"""
-        return self.session.query(GroupUser).filter_by(guild = guild_id).all()
-    
-    async def add_player_to_group(self, group: str, player, guild_id: int) -> str:
-        """This function adds a player to a group in the table 'Groups'
-        It returns a string whether an user is added or not
-        """
-        player_info = await player.get_all_player_info()
-        account_tag = player_info["tag"]
-        #Check if player is already added to the group in the current guild
-        exists = self.session.query(GroupUser.id).filter_by(tag=account_tag, group=group, guild = str(guild_id)).first() is not None
-                
-        if not exists:
-            name = player_info["name"]
-            #If player isn't in the group add it to group
-            self.session.add(GroupUser(group=group, tag=account_tag, guild = str(guild_id), name=name))
+        
+    def add(self, start_trophies, total_offense, total_defense, player_tag):
+        count_query = select(func.count(LegendDay.id))
+        pre_count = self.session.scalar(count_query)
+        
+        player_to_add = self.session.scalars(select(Player).filter_by(tag=player_tag)).first()
+        
+        if player_to_add:
+            legend_day_to_add = LegendDay(
+                start_trophies = start_trophies,
+                total_offense = total_offense,
+                total_defense = total_defense,
+                player = player_to_add
+            )
             
-            #Also check if player is tracked already
-            is_tracked = self.check_if_player_is_tracked(account_tag)
-            self.session.commit()
+            self.session.add(legend_day_to_add)
+            self.session.commit() 
             
-            if not is_tracked:
-                #If not tracked get player trophies
-                
-                current_trophies = player_info["trophies"]
-                #Add player to TRACKED_USERS Table
-                self.add_mutation(account_tag=account_tag, current_trophies=0, new_trophies=current_trophies)
-                self.session.commit()
-                self.session.close()
-                return "User is starting to get tracked and has been added to the group"
-            else:
-                self.session.close()
-                #TODO return an a string with this answer so discord can send a message user is already being tracked
-                return "User is added to the group"                
+            post_count = self.session.scalar(count_query)
+            return post_count > pre_count                
         else:
-            #TODO return an a string with this answer so discord can send a message
-            #Return error player is in the group
-            return "User is already in the group"
-    
-    def rm_player(self,player: str, guild_id:int) -> str:
-        """
-        Deletes the user from all groups in this specific guild.\n
-        Returns a string that tells you the user has been deleted
-        """
-        delete_statement = delete(GroupUser).where(and_(GroupUser.guild==str(guild_id), GroupUser.tag==player))
-        
-        self.session.execute(delete_statement)
-        self.session.commit()
-        self.session.close()
-        return "User has been deleted"
-
-    def get_current_group(self, account: str, guild_id: int):
-        """Returns the group name of a specific group an account is in"""
-        response = self.session.query(GroupUser).filter_by(guild=str(guild_id), tag=account).scalar()
-        return response.group
-    
-    def change_player_group(self, account: str, new_group: str, guild_id: int) -> str:
-        """
-        Changes the group for a specific player in the guild the action has been performed\n
-        Returns a string whether the user has been updated or not
-        """
-        update_statement = update(GroupUser).where(and_(GroupUser.guild == str(guild_id), GroupUser.tag==account)).values(group=new_group)
-        
-        self.session.execute(update_statement)
-        self.session.commit()
-        self.session.close()
-        
-        if self.get_current_group(account=account, guild_id=str(guild_id)) == new_group:
-            return "User has been updated"
-        else:
-            return "There has ben an error"
-    
-    def get_player_from_group(self, guild_id, account_tag):
-        """Returns a player object from a specific group in the current guild"""
-        return self.session.query(GroupUser).filter_by(guild=str(guild_id), tag=account_tag).scalar()
-
-class LegendDay:
-       
-    def __init__(self, session: Session) -> None:
-        self.session = session
-       
-    def add_legend_start(self, players: list[tuple]):
-        #players ia list of tuples with format: (account_tag, trophies)
-        
-        mutations = [LegendDay(tag= tuple[0], trophies = tuple[1], date = datetime.date.today()) for tuple in players]
-        self.session.add_all(mutations)
-        self.session.commit()
-        
-    def get_legend_start(self, account_tag: str, date: date):
-        try:
-            query = self.session.query(LegendDay.trophies).filter_by(tag=account_tag, date=date).scalar()
-        except NoResultFound as e:
-            return e
-        else:
-            return query
-        
-class LegendSeasons:
-    
-    def __init__(self, session: Session) -> None:
-        self.session = session
-
-    def add_season_to_legend_db(self, data: list, season: str):       
-        #Add users to a list
-        data_to_add = [User(season=season, tag=item["tag"], name=item["name"], rank=item["rank"], trophies=item["trophies"]) for item in data]
-        
-        #Add all useres to the database
-        self.session.add_all(data_to_add)
-        self.session.commit()
-        
-    def get_user_information(self, user_tag: str):
-        return self.session.query(User).filter_by(tag=user_tag).all()
-
+            return False   
 class BotDatabase:
     def __init__(self, config: Config) -> None:
         self.is_connected = False
         self.config = config
         self.connection = self.connect()
         self.session: Session = self.session_maker()
-        
-        self.tracked_user_queries = TrackedUserQueries(self.session)
-        self.group_queries = GroupQueries(self.session)
-        self.legend_day_queries = LegendDay(self.session)
-        self.legend_seasons_queries = LegendSeasons(self.session)
+               
+        self.player_queries = PlayerQueries(self.session)
+        self.group_queries = GroupQueries(self.session, self.player_queries)
+        self.legend_day_queries = LegendDaysQueries(self.session)
+        self.mutation_queries = MutationQueries(self.session, self.player_queries)
         
       
     def connect(self) -> None:

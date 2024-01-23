@@ -3,7 +3,7 @@ import os
 import aiohttp
 
 from urllib import parse
-from database.database import BotDatabase
+# from database.database import BotDatabase
 # from API.aiosession import fetch
 
 API_TOKEN = os.getenv("API_TOKEN_COC")
