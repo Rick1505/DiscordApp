@@ -156,7 +156,8 @@ class LegendFeed(commands.GroupCog, name="legend"):
         self.legend_feed.start(channel=channel, guild_id=interaction.guild.id)
         
         await interaction.response.send_message(f"The channel has successfully been set {channel}")
-        
+
+            
         
 async def setup(bot:commands.Bot) -> None:
   await bot.add_cog(LegendFeed(bot))

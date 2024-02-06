@@ -22,7 +22,6 @@ class APICalls:
             async with session.get(url=url, params=self.headers, timeout=timeout) as response:
                 if response.status == 200:
                     data = await response.json()
-                    print(f"Succesfully fetched {url} ")
                     return data
                 else:
                     response.raise_for_status

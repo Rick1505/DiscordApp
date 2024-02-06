@@ -11,23 +11,29 @@ class CustomEmbeds(commands.Cog):
           self.bot = bot
           self.db = bot.dbconn
           
+          self.db_group = self.bot.dbconn.group_queries 
+          self.db_player = self.bot.dbconn.player_queries
+          self.db_legendday = self.bot.dbconn.legend_day_queries 
+          self.db_mutation = self.bot.dbconn.mutation_queries
+          self.db_discord_user = self.bot.dbconn.discord_user_queries
           
-    async def embed_player_overview(self, db: BotDatabase, player_name:str, player_tag: str, group_name: str) -> discord.Embed:
+    async def embed_player_overview(self, player_name:str, player_tag: str, group_name: str) -> discord.Embed:
             """Creates a discord embed for a legend_overview of a player"""
             emoji = Emoji()
             
             min_trophy = emoji.get_emoji("min_trophy")
             plus_trophy = emoji.get_emoji("plus_trophy")
                 
-            data = db.get_all_mutations_per_day(account_tag=player_tag)
-            
+            data = self.db_mutation.get_today_hits_from_player(account_tag=player_tag)
+                        
             offense = data["offense"]
             defense = data["defense"]
             
             sum_offense = sum(offense)
             sum_defense = sum(defense)
-                        
-            begin_trophies = self.db.get_legend_start(account_tag=player_tag, date=datetime.date.today())
+            
+            begin_trophies = self.db_legendday.get_start_trophies(player_tag, datetime.date.today())                        
+            # begin_trophies = self.db.get_legend_start(account_tag=player_tag, date=datetime.date.today())
 
             if not begin_trophies:
                 begin_trophies = 0

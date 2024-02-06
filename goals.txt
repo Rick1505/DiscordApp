@@ -1,0 +1,37 @@
+Player:
+
+- Every time a new player has been added to a group: 
+    - If player doesnt exists:
+        - Add default player to database (no alias no DiscordUser)
+        - Add new mutation to database
+        - Add player to the group
+    - If player exists:
+        - Add player to group
+
+- A player can only be made by adding it to a group
+- Everyone can see the statistics of a player
+- Only the DiscordUser is able to change the alias of a player
+
+DiscordUser:
+
+- You can only create DiscordUser for your own discord account
+- To link a player account you have to verify its yours, using ingame API TOKEN
+- A DiscordUser can have unlimited amount of groups and players
+
+Group:
+
+- Everyone can create a group
+- Only the creator of a group can adjust the players in the group
+- Unlimited amount of groups can be created
+
+- If a group is being created:
+    - Checks if this user has a DiscordUser already
+        - If not it automatically makes a default DiscordUser and links group
+        - Else it links group to the DiscordUser
+    - Default DiscordUser: No alias
+
+- Everyone can show the details of the group
+- A group only exists within the specific guild (Discord server)
+
+- A player can not be switch between groups only by adding/removing
+

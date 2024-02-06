@@ -19,8 +19,6 @@ class Config:
             self.discord_token = prod_secrets.discord_token
             self.coc_api_token = prod_secrets.coc_api_token
             
-        
-        #IDK if this is necessary
         self.initial_extensions = (
             "cogs.group",
             "cogs.legend_feed",
@@ -28,12 +26,3 @@ class Config:
             "cogs.background_tasks",
             "design.custom_embeds"
         )
-        
-                
-initial_extensions = [
-    "cogs.group",
-    "cogs.legend_feed",
-    "cogs.player_info",
-    "cogs.background_tasks",
-    "design.custom_embeds"
-]

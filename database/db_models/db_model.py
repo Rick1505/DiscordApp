@@ -37,7 +37,6 @@ class Player(Base):
         secondary=association_table, back_populates="players"
     )
     
-
 class DiscordUser(Base):
     __tablename__ = "discord_user"
     
@@ -48,7 +47,9 @@ class DiscordUser(Base):
     #Parent of Player
     accounts: Mapped[List["Player"]] = relationship(back_populates="discord_user")
     
-
+    #Parent of Groups:
+    groups: Mapped[List["Group"]] = relationship(back_populates="discord_user")
+    
 class Group(Base):
     __tablename__ = "group"
     
@@ -61,7 +62,10 @@ class Group(Base):
         secondary=association_table, back_populates="groups"
     )
     
-
+    #Child of DiscordUser
+    discord_user_id: Mapped[String] = mapped_column(ForeignKey("discord_user.id"))
+    discord_user: Mapped["DiscordUser"] = relationship(back_populates="groups") 
+    
 class Mutation(Base):
     __tablename__ = "mutation"
     
@@ -88,96 +92,3 @@ class LegendDay(Base):
     player: Mapped["Player"] = relationship(back_populates="legend_days")
     
 
-
-
-# # OLDTABLES
-# class User(Base):
-#     __tablename__ = 'legend_seasons'
-
-#     id:Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-#     season: Mapped[str] = mapped_column(String(20))
-#     tag: Mapped[str] = mapped_column(String(15))
-#     name: Mapped[str] = mapped_column(String(30))
-#     rank: Mapped[int]
-#     trohpies: Mapped[int]
-    
-# class NationalityUser(Base):
-#     __tablename__ = "players_nationality"
-    
-#     tag: Mapped[str]= mapped_column(String(15), primary_key=True)
-#     name: Mapped[str] = mapped_column(String(30))
-#     country: Mapped[str] = mapped_column(String(30))
-      
-# class TrackedUser(Base):
-#     __tablename__ = "legend_mutations"
-    
-#     id:Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-#     tag: Mapped[str]= mapped_column(String(15))
-#     current_trophies: Mapped[int]
-#     delta_trophies: Mapped[int]
-#     date: Mapped[DateTime] = mapped_column(DateTime())
-    
-# class GroupUser(Base):
-#     __tablename__ = "user_groups"
-    
-#     id:Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-#     guild: Mapped[str] = mapped_column(String(30))
-#     tag: Mapped[str]= mapped_column(String(15))
-#     name: Mapped[str] = mapped_column(String(30))
-#     group: Mapped[str] = mapped_column(String(30))
-       
-# class LegendDay(Base):
-#     __tablename__ = "legend_start"
-    
-#     id:Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-#     tag: Mapped[str]= mapped_column(String(15))
-#     trophies: Mapped[int]
-#     date: Mapped[Date] = mapped_column(Date())
-
-    
-
-
-
-# # OLDTABLES
-# class User(Base):
-#     __tablename__ = 'legend_seasons'
-
-#     id:Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-#     season: Mapped[str] = mapped_column(String(20))
-#     tag: Mapped[str] = mapped_column(String(15))
-#     name: Mapped[str] = mapped_column(String(30))
-#     rank: Mapped[int]
-#     trohpies: Mapped[int]
-    
-# class NationalityUser(Base):
-#     __tablename__ = "players_nationality"
-    
-#     tag: Mapped[str]= mapped_column(String(15), primary_key=True)
-#     name: Mapped[str] = mapped_column(String(30))
-#     country: Mapped[str] = mapped_column(String(30))
-      
-# class TrackedUser(Base):
-#     __tablename__ = "legend_mutations"
-    
-#     id:Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-#     tag: Mapped[str]= mapped_column(String(15))
-#     current_trophies: Mapped[int]
-#     delta_trophies: Mapped[int]
-#     date: Mapped[DateTime] = mapped_column(DateTime())
-    
-# class GroupUser(Base):
-#     __tablename__ = "user_groups"
-    
-#     id:Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-#     guild: Mapped[str] = mapped_column(String(30))
-#     tag: Mapped[str]= mapped_column(String(15))
-#     name: Mapped[str] = mapped_column(String(30))
-#     group: Mapped[str] = mapped_column(String(30))
-       
-# class LegendDay(Base):
-#     __tablename__ = "legend_start"
-    
-#     id:Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-#     tag: Mapped[str]= mapped_column(String(15))
-#     trophies: Mapped[int]
-#     date: Mapped[Date] = mapped_column(Date())
